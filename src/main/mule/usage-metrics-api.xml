@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+
+    <!-- Configuration HTTP Listener -->
+
+    <!-- Configuration HTTP Request pour Anypoint APIs -->
+
+    <!-- Object Store pour stocker le token -->
+    <os:object-store name="Token_Store" doc:name="Object store" persistent="false" maxEntries="10" entryTtl="3500" entryTtlUnit="SECONDS"/>
+
+    <!-- Configuration globale -->
+    <configuration-properties file="config.properties"/>
+
+    <!-- Sous-flow pour obtenir ou rafraîchir le token -->
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="8a0ff04c-d827-4e4e-a7f7-a6cd4da77cdc" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<http:request-config name="Anypoint_HTTP_Request_config" doc:name="HTTP Request configuration" doc:id="a8376fad-f774-40dd-a7dc-450124a7e76f" >
+		<http:request-connection protocol="HTTPS" host="eu1.anypoint.mulesoft.com" >
+			<tls:context >
+				<tls:trust-store insecure="true" />
+			</tls:context>
+		</http:request-connection>
+	</http:request-config>
+	<sub-flow name="get-access-token" doc:name="Get Access Token">
+        <try doc:name="Try">
+            <!-- Vérifier si le token existe dans l'object store -->
+            <os:retrieve doc:name="Retrieve Token" key="bearer_token" objectStore="Token_Store" target="storedToken"/>
+            <choice doc:name="Token Exists?">
+                <when expression="#[vars.storedToken != null]">
+                    <set-variable variableName="accessToken" value="#[vars.storedToken]" doc:name="Use Cached Token"/>
+                </when>
+                <otherwise>
+                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
+                </otherwise>
+            </choice>
+            <error-handler>
+                <on-error-continue type="OS:KEY_NOT_FOUND">
+                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+
+    <!-- Sous-flow pour générer un nouveau token -->
+    <sub-flow name="generate-new-token" doc:name="Generate New Token">
+        <http:request method="POST" path="/accounts/api/v2/oauth2/token" doc:name="Request Token" doc:id="6a4b1b71-dbc3-40ae-90d4-b5f6057b7468" config-ref="Anypoint_HTTP_Request_config">
+            <http:headers><![CDATA[#[output application/java
+---
+{
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+            <http:body><![CDATA[#[output application/json
+---
+{
+    "grant_type": "client_credentials",
+    "client_id": p('anypoint.client.id'),
+    "client_secret": p('anypoint.client.secret')
+}]]]></http:body>
+        </http:request>
+		<ee:transform doc:name="Extract Token">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload.access_token]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <os:store doc:name="Store Token" key="bearer_token" objectStore="Token_Store">
+            <os:value>#[payload]</os:value>
+        </os:store>
+        <set-variable variableName="accessToken" value="#[payload]" doc:name="Set Token Variable"/>
+    </sub-flow>
+
+    <!-- Flow principal - Get Available Meters -->
+    <flow name="get-meters" doc:name="Get Available Meters">
+        <http:listener doc:name="GET /api/meters" path="/api/meters" allowedMethods="GET" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <flow-ref name="get-access-token" doc:name="Get Token"/>
+        <http:request method="GET" path="/metering/usage/api/v1/meters:describe" doc:name="Get Meters" doc:id="8dc4caee-9a64-44a8-afcd-6a17f328bf43" config-ref="Anypoint_HTTP_Request_config">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+        </http:request>
+        <ee:transform doc:name="Transform Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- Flow - Get Runtime Flows Metrics -->
+    <flow name="get-runtime-flows" doc:name="Get Runtime Flows">
+        <http:listener doc:name="POST /api/metrics/runtime-flows" path="/api/metrics/runtime-flows" allowedMethods="POST" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <flow-ref name="get-access-token" doc:name="Get Token"/>
+        <ee:transform doc:name="Build Query">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    query: "SELECT org_name, env_name, app_name, mule_flow_count FROM runtime_flow_count WHERE timestamp between " 
+           ++ payload.startTime as String 
+           ++ " and " 
+           ++ payload.endTime as String 
+           ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
+           ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:name="Search Runtime Flows" doc:id="bb769089-ace7-4b5d-9351-b6e4d61b39b8" config-ref="Anypoint_HTTP_Request_config">
+            <http:body ><![CDATA[#[output application/json
+---
+payload]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+        </http:request>
+        <ee:transform doc:name="Format Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: true,
+    data: payload,
+    timestamp: now()
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- Flow - Get API Manager Metrics -->
+    <flow name="get-api-manager-metrics" doc:name="Get API Manager Metrics">
+        <http:listener doc:name="POST /api/metrics/api-manager" path="/api/metrics/api-manager" allowedMethods="POST" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <flow-ref name="get-access-token" doc:name="Get Token"/>
+        <ee:transform doc:name="Build Query">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    query: "SELECT org_name, env_name, api_name, api_version, api_transaction_count FROM api_manager_api_transaction_count WHERE timestamp between " 
+           ++ payload.startTime as String 
+           ++ " and " 
+           ++ payload.endTime as String 
+           ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
+           ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:name="Search API Manager" doc:id="37886036-2691-4542-9f5e-a2dbccb08a03" config-ref="Anypoint_HTTP_Request_config">
+            <http:body ><![CDATA[#[output application/json
+---
+payload]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+        </http:request>
+        <ee:transform doc:name="Format Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: true,
+    data: payload,
+    timestamp: now()
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- Flow - Get Network Usage Metrics -->
+    <flow name="get-network-usage" doc:name="Get Network Usage">
+        <http:listener doc:name="POST /api/metrics/network-usage" path="/api/metrics/network-usage" allowedMethods="POST" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <flow-ref name="get-access-token" doc:name="Get Token"/>
+        <ee:transform doc:name="Build Query">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    query: "SELECT org_name, env_name, app_name, deployment_model, network_bytes_count FROM runtime_network_bytes_count WHERE timestamp between " 
+           ++ payload.startTime as String 
+           ++ " and " 
+           ++ payload.endTime as String 
+           ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
+           ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:name="Search Network Usage" doc:id="62720255-dfcc-4b33-9bda-50968da25d04" config-ref="Anypoint_HTTP_Request_config">
+            <http:body ><![CDATA[#[output application/json
+---
+payload]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+        </http:request>
+        <ee:transform doc:name="Format Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: true,
+    data: payload,
+    timestamp: now()
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- Flow - Get Aggregated Dashboard Data -->
+    <flow name="get-dashboard-data" doc:name="Get Dashboard Data">
+        <http:listener doc:name="POST /api/dashboard" path="/api/dashboard" allowedMethods="POST" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <flow-ref name="get-access-token" doc:name="Get Token"/>
+        
+        <!-- Parallel Processing for multiple metrics -->
+        <scatter-gather doc:name="Scatter-Gather">
+            <!-- Runtime Flows -->
+            <route>
+                <ee:transform doc:name="Build Runtime Flow Query">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    query: "SELECT org_name, env_name, app_name, mule_flow_count FROM runtime_flow_count WHERE timestamp between " 
+           ++ attributes.queryParams.startTime default ((now() - |P30D|) as Number) as String
+           ++ " and " 
+           ++ attributes.queryParams.endTime default (now() as Number) as String
+           ++ " TIMESERIES " ++ (attributes.queryParams.timeSeries default "P1D")
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:name="Get Runtime Flows" doc:id="2f728c9a-0fa8-4aab-92fc-e590a4d8b02d" config-ref="Anypoint_HTTP_Request_config">
+                    <http:body ><![CDATA[#[output application/json
+---
+payload]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+                </http:request>
+                <ee:transform doc:name="Set Runtime Flows">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{ runtimeFlows: payload }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </route>
+            
+            <!-- API Manager Metrics -->
+            <route>
+                <ee:transform doc:name="Build API Manager Query">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    query: "SELECT org_name, env_name, api_name, api_version, api_transaction_count FROM api_manager_api_transaction_count WHERE timestamp between " 
+           ++ attributes.queryParams.startTime default ((now() - |P30D|) as Number) as String
+           ++ " and " 
+           ++ attributes.queryParams.endTime default (now() as Number) as String
+           ++ " TIMESERIES " ++ (attributes.queryParams.timeSeries default "P1D")
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:name="Get API Manager" doc:id="d6ee823e-8f49-4c9d-aa3d-e3ba14885a49" config-ref="Anypoint_HTTP_Request_config">
+                    <http:body ><![CDATA[#[output application/json
+---
+payload]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+                </http:request>
+                <ee:transform doc:name="Set API Manager">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{ apiManager: payload }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </route>
+        </scatter-gather>
+        
+        <ee:transform doc:name="Aggregate Dashboard Data">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: true,
+    timestamp: now(),
+    data: {
+        runtimeFlows: payload[0].runtimeFlows,
+        apiManager: payload[1].apiManager,
+        summary: {
+            totalFlows: sum(payload[0].runtimeFlows.data.mule_flow_count default []),
+            totalApiTransactions: sum(payload[1].apiManager.data.api_transaction_count default []),
+            environments: (payload[0].runtimeFlows.data.env_name default []) distinctBy $,
+            applications: (payload[0].runtimeFlows.data.app_name default []) distinctBy $
+        }
+    }
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- CORS Handler -->
+    <flow name="options-handler" doc:name="CORS Options Handler">
+        <http:listener doc:name="OPTIONS /*" path="/*" allowedMethods="OPTIONS" config-ref="HTTP_Listener_config">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Max-Age': '86400'
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <ee:transform doc:name="Empty Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <!-- Global Error Handler -->
+    <error-handler name="Global_Error_Handler" doc:name="Global Error Handler">
+        <on-error-propagate type="HTTP:UNAUTHORIZED">
+            <ee:transform doc:name="Unauthorized Response">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: false,
+    error: "Authentication failed",
+    message: error.description
+}]]></ee:set-payload>
+                </ee:message>
+                <ee:variables>
+                    <ee:set-variable variableName="httpStatus"><![CDATA[401]]></ee:set-variable>
+                </ee:variables>
+            </ee:transform>
+        </on-error-propagate>
+        <on-error-propagate type="ANY">
+            <ee:transform doc:name="Error Response">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: false,
+    error: error.errorType.identifier,
+    message: error.description
+}]]></ee:set-payload>
+                </ee:message>
+                <ee:variables>
+                    <ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+                </ee:variables>
+            </ee:transform>
+        </on-error-propagate>
+    </error-handler>
+</mule>
