@@ -132,9 +132,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, env_id, env_name, env_type, asset_id, app_name, deployment_model, mule_flow_count, num_workers FROM runtime_flow_count WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.startTime as Number) 
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.endTime as Number) 
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
@@ -194,9 +194,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count, max_concurrent_time FROM api_manager_api_instance_count_prod WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (payload.startTime as Number)
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (payload.endTime as Number)
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
@@ -215,9 +215,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count, max_concurrent_time FROM api_manager_api_instance_count_preprod WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.startTime as Number) 
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.endTime as Number) 
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
            		else ""
@@ -236,9 +236,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count, max_concurrent_time FROM api_manager_api_instance_count_unclassified WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.startTime as Number) 
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.endTime as Number) 
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
            		else ""
@@ -296,9 +296,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, env_id, env_name, env_type, asset_id, app_name, deployment_model, network_bytes_count FROM runtime_network_bytes_count WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.startTime as Number) 
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.endTime as Number) 
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
@@ -353,9 +353,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, governed_api_count, max_concurrent_time FROM governed_api_count WHERE timestamp between " 
-           ++ ((payload.startTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.startTime as Number) 
            ++ " and " 
-           ++ ((payload.endTime as DateTime) as Number {unit: "milliseconds"}) 
+           ++ (payload.endTime as Number) 
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
 }]]></ee:set-payload>
@@ -412,9 +412,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, env_id, env_name, env_type, asset_id, app_name, mule_flow_count FROM runtime_flow_count WHERE timestamp between " 
-           ++ ((vars.requestParams.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.startTime as Number)
            ++ " and " 
-           ++ ((vars.requestParams.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.endTime as Number)
            ++ (if (vars.requestParams.envType != null and (lower(vars.requestParams.envType) == "sandbox") or (lower(vars.requestParams.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
            		else if (vars.requestParams.envType != null and (lower(vars.requestParams.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
            		else ""
@@ -459,9 +459,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count FROM api_manager_api_instance_count_prod WHERE timestamp between " 
-           ++ ((vars.requestParams.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.startTime as Number)
            ++ " and " 
-           ++ ((vars.requestParams.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.endTime as Number)
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
            
            }]]></ee:set-payload>
@@ -476,9 +476,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count FROM api_manager_api_instance_count_preprod WHERE timestamp between " 
-           ++ ((vars.requestParams.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.startTime as Number)
            ++ " and " 
-           ++ ((vars.requestParams.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.endTime as Number)
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
 }]]></ee:set-payload>
                             </ee:message>
@@ -492,9 +492,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, runtime, env_type, managed_api_count FROM api_manager_api_instance_count_unclassified WHERE timestamp between " 
-           ++ ((vars.requestParams.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.startTime as Number)
            ++ " and " 
-           ++ ((vars.requestParams.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.endTime as Number)
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
 }]]></ee:set-payload>
                             </ee:message>
@@ -535,9 +535,9 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, governed_api_count FROM governed_api_count WHERE timestamp between " 
-           ++ ((vars.requestParams.startTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.startTime as Number)
            ++ " and " 
-           ++ ((vars.requestParams.endTime as DateTime) as Number {unit: "milliseconds"})
+           ++ (vars.requestParams.endTime as Number)
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
 }]]></ee:set-payload>
                     </ee:message>
