@@ -1,237 +1,290 @@
 # 🚀 Usage Metrics API - Backend Mulesoft
 
-API Mulesoft 4 pour collecter et exposer les métriques d'utilisation d'Anypoint Platform via l'API Usage Metering.
+API Mulesoft 4 pour collecter, exposer et monitorer les métriques d'utilisation d'Anypoint Platform via l'API Usage Metering.
 
 ## 📋 Table des matières
 
 - [Vue d'ensemble](#-vue-densemble)
 - [Architecture](#-architecture)
+- [Fonctionnalités](#-fonctionnalités)
 - [Prérequis](#-prérequis)
-- [Installation](#-installation)
+- [Installation Rapide](#-installation-rapide)
 - [Configuration](#-configuration)
 - [Structure du projet](#-structure-du-projet)
-- [Flux et Endpoints](#-flux-et-endpoints)
-- [Métriques Disponibles](#-métriques-disponibles)
+- [API Reference](#-api-reference)
+- [Monitoring & Alertes](#-monitoring--alertes)
 - [Développement](#-développement)
 - [Déploiement](#-déploiement)
-- [Monitoring](#-monitoring)
 - [Dépannage](#-dépannage)
-- [Contribution](#-contribution)
+- [Support](#-support)
 
 ## 🎯 Vue d'ensemble
 
-Cette API Mulesoft sert d'interface entre l'Anypoint Usage API et le dashboard frontend. Elle gère :
-- **Authentification OAuth2** : Génération et cache automatique des tokens
-- **Collecte de métriques** : Flux runtime, APIs managées, APIs gouvernées, utilisation réseau
-- **Agrégation de données** : Endpoint dashboard combinant toutes les métriques
-- **Classification par environnement** : Production, Sandbox/Préproduction, Non-classifié
+### Objectif
+
+Cette API sert de passerelle entre l'Anypoint Usage API et vos applications frontend/monitoring. Elle centralise la collecte des métriques de consommation pour :
+- **Optimiser les coûts** en surveillant l'utilisation des ressources
+- **Prévenir les dépassements** de limites contractuelles
+- **Automatiser les alertes** via Slack pour une réactivité maximale
+- **Fournir des dashboards** temps réel sur l'usage de la plateforme
+
+### Cas d'usage principaux
+
+1. **Dashboard de monitoring** : Visualisation temps réel de l'utilisation
+2. **Alerting proactif** : Notifications Slack avant dépassement de limites
+3. **Reporting mensuel** : Extraction des données pour facturation/analyse
+4. **Capacity planning** : Anticipation des besoins en ressources
 
 ### Points Clés
 
-- ✅ **Gestion automatique des tokens** avec Object Store
-- ✅ **Support CORS** pour intégration frontend
-- ✅ **Parallel processing** avec Scatter-Gather
-- ✅ **Error handling** global
-- ✅ **Support des TimeSeries** (P1D journalier, P1M mensuel)
+- ✅ **Token Management automatique** avec cache Object Store (3500s TTL)
+- ✅ **Monitoring horaire** avec alertes Slack multi-niveaux
+- ✅ **Support CORS** pour intégration frontend sans proxy
+- ✅ **Parallel processing** avec Scatter-Gather pour performance optimale
+- ✅ **Classification automatique** par type d'environnement
+- ✅ **Historique des alertes** conservé 30 jours
 
 ## 🏗 Architecture
 
 ```
-API Mulesoft 4
-    │
-    ├── HTTP Listener (port 8081)
-    │   └── Routes API REST
-    │
-    ├── Token Management
-    │   ├── OAuth2 Client Credentials
-    │   └── Object Store (cache 3500s)
-    │
-    ├── Anypoint Usage API
-    │   ├── Meters endpoints
-    │   └── Search endpoints
-    │
-    └── Data Processing
-        ├── DataWeave transformations
-        └── Scatter-Gather aggregation
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend Dashboard                       │
+└────────────────────┬────────────────────────────────────────┘
+                     │ HTTP/REST
+┌────────────────────▼────────────────────────────────────────┐
+│                   Usage Metrics API                          │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                  HTTP Listener                       │    │
+│  │                   (Port 8081)                        │    │
+│  └──────────┬──────────────────────┬──────────────────┘    │
+│             │                      │                         │
+│  ┌──────────▼────────┐  ┌─────────▼──────────┐            │
+│  │  API Endpoints    │  │  Scheduler Flow    │             │
+│  │  • /api/meters    │  │  (Every Hour)      │             │
+│  │  • /api/dashboard │  └─────────┬──────────┘             │
+│  │  • /api/metrics/* │            │                         │
+│  └──────────┬────────┘  ┌─────────▼──────────┐             │
+│             │            │  Monitor Limits    │             │
+│  ┌──────────▼────────┐  │  • Runtime Flows   │             │
+│  │  Token Manager    │  │  • Governed APIs   │             │
+│  │  OAuth2 + Cache   │  │  • Managed APIs    │             │
+│  └──────────┬────────┘  └─────────┬──────────┘             │
+│             │                      │                         │
+└─────────────┼──────────────────────┼────────────────────────┘
+              │                      │
+    ┌─────────▼──────────┐ ┌────────▼─────────┐
+    │  Anypoint Usage    │ │   Slack API      │
+    │       API          │ │  Notifications   │
+    └────────────────────┘ └──────────────────┘
 ```
 
-### Flux Principaux
+### Composants principaux
 
-1. **Token Management** : Sous-flux réutilisable pour l'authentification
-2. **Meters Discovery** : Découverte des métriques disponibles
-3. **Metrics Collection** : Collecte par type de métrique
-4. **Dashboard Aggregation** : Agrégation parallèle de toutes les métriques
+| Composant | Description | Fichier |
+|-----------|-------------|---------|
+| **API Gateway** | Expose les endpoints REST avec CORS | `usage-metrics-api.xml` |
+| **Token Manager** | Gestion automatique des tokens OAuth2 | `usage-metrics-api.xml` |
+| **Monitor Scheduler** | Surveillance horaire avec alertes | `usage-monitor-scheduler.xml` |
+| **Data Aggregator** | Consolidation parallèle des métriques | `usage-metrics-api.xml` |
+| **Slack Notifier** | Envoi d'alertes structurées | `usage-monitor-scheduler.xml` |
+
+## ✨ Fonctionnalités
+
+### 1. Collecte de Métriques
+
+- **Runtime Flows** : Nombre de flux Mule déployés par application
+- **API Manager** : APIs managées par environnement (prod/preprod/unclassified)
+- **Governed APIs** : APIs sous gouvernance Anypoint
+- **Network Usage** : Bande passante consommée par application
+
+### 2. Monitoring Automatique
+
+- **Vérification horaire** des limites d'usage
+- **Alertes à 2 niveaux** : WARNING (80%) et CRITICAL (100%)
+- **Notifications Slack** enrichies avec graphiques
+- **Historique conservé** 30 jours dans Object Store
+
+### 3. API REST Complète
+
+- **Endpoints granulaires** pour chaque type de métrique
+- **Endpoint Dashboard** agrégé pour vue d'ensemble
+- **Support des filtres** : orgId, envType, timeSeries
+- **Formats TimeSeries** : P1D (jour), P1M (mois)
+
+### 4. Gestion Intelligente des Environnements
+
+Mapping automatique des environnements :
+- **Production** : `242b6f0c-7f5c-4c31-92f1-4257e182e885`
+- **Sandbox/Préproduction** : `1f157a54-15ca-491e-ac7f-77c662f71d9c`
+- **Non-classifié** : Autres environnements
 
 ## 📦 Prérequis
 
-- **Mule Runtime** : 4.4.0 ou supérieur (testé avec 4.9.8)
-- **Java** : JDK 17
-- **Maven** : 3.6.0 ou supérieur
-- **Anypoint Studio** : 7.15.0 ou supérieur (optionnel)
-- **Anypoint Account** : 
-  - Client ID et Secret avec accès Usage API
-  - Permissions : Usage API Reader minimum
+| Composant | Version Minimum | Recommandé | Notes |
+|-----------|----------------|------------|-------|
+| **Mule Runtime** | 4.4.0 | 4.9.8 | Support Java 17 |
+| **Java JDK** | 17 | 17 | Version LTS |
+| **Maven** | 3.6.0 | 3.9.x | Pour build |
+| **Anypoint Studio** | 7.15.0 | Latest | Optionnel |
+| **Slack Workspace** | - | - | Pour alertes |
 
-## 🚀 Installation
+### Permissions Anypoint Requises
 
-### 1. Cloner le projet
+- ✅ **Usage API Reader** : Lecture des métriques
+- ✅ **Organization Administrator** : Pour OAuth2 client credentials
+- ✅ **Environment Access** : Sur les environnements à monitorer
+
+## 🚀 Installation Rapide
+
+### Option 1 : Démarrage Express (5 min)
 
 ```bash
+# 1. Clone
 git clone <votre-repo>
 cd usage-metrics-api
+
+# 2. Configuration minimale
+echo "anypoint.client.id=YOUR_CLIENT_ID" >> src/main/resources/config.properties
+echo "anypoint.client.secret=YOUR_SECRET" >> src/main/resources/config.properties
+
+# 3. Build & Run
+mvn clean package mule:run
+
+# 4. Test
+curl http://localhost:8081/api/meters
 ```
 
-### 2. Configuration des credentials
+### Option 2 : Installation Complète avec Monitoring
 
 ```bash
-# Éditer le fichier de configuration
-nano src/main/resources/config.properties
-```
+# 1. Clone et configuration
+git clone <votre-repo>
+cd usage-metrics-api
 
-```properties
-# HTTP Configuration
-http.port=8081
+# 2. Configuration complète
+cp src/main/resources/config.properties.template src/main/resources/config.properties
+# Éditer config.properties avec vos credentials
 
-# Anypoint Platform Credentials (OBLIGATOIRE)
-anypoint.client.id=65dbfe82af0b4e3eb7c745f1d6d8e3db
-anypoint.client.secret=E1cD10e3895C4e37a24261d850faD91F
-
-# API Base URL (EU region par défaut)
-anypoint.base.url=https://eu1.anypoint.mulesoft.com
-
-# Token TTL (en secondes)
-token.ttl=3500
-
-# Default Query Parameters
-default.timeseries=P1D
-default.days.back=30
-```
-
-### 3. Build du projet
-
-```bash
-# Build avec Maven
+# 3. Build
 mvn clean package
 
-# Ou dans Anypoint Studio
-# Import > Anypoint Studio > Packaged mule application (.jar)
-```
+# 4. Configuration Slack (optionnel)
+# Dans usage-monitor-scheduler.xml, configurer :
+# - slack.channel
+# - Limites d'alerte (limit.*.warning/critical)
 
-### 4. Démarrage local
+# 5. Démarrage
+mvn mule:run -Dmule.env=dev
 
-```bash
-# Avec Maven
-mvn mule:run
-
-# Ou dans Studio
-# Run As > Mule Application
-```
-
-### 5. Vérification
-
-```bash
-# Test de santé
-curl http://localhost:8081/api/meters
-
-# Devrait retourner la liste des meters disponibles
+# 6. Vérification
+curl http://localhost:8081/api/test-monitor  # Test du monitoring
 ```
 
 ## ⚙️ Configuration
 
-### Configuration Properties
+### 1. Configuration de Base (`config.properties`)
 
-Le fichier `src/main/resources/config.properties` contient :
+```properties
+# === Configuration HTTP ===
+http.port=8081                    # Port d'écoute de l'API
 
-| Propriété | Description | Valeur par défaut |
-|-----------|-------------|-------------------|
-| `http.port` | Port d'écoute HTTP | 8081 |
-| `anypoint.client.id` | Client ID Anypoint | (requis) |
-| `anypoint.client.secret` | Client Secret Anypoint | (requis) |
-| `anypoint.base.url` | URL base Anypoint | https://eu1.anypoint.mulesoft.com |
-| `token.ttl` | Durée de vie du token (sec) | 3500 |
-| `default.timeseries` | TimeSeries par défaut | P1D |
-| `default.days.back` | Jours historique par défaut | 30 |
+# === Credentials Anypoint (OBLIGATOIRE) ===
+anypoint.client.id=YOUR_CLIENT_ID_HERE
+anypoint.client.secret=YOUR_CLIENT_SECRET_HERE
 
-### Régions Anypoint
+# === Configuration Régionale ===
+# US : https://anypoint.mulesoft.com
+# EU : https://eu1.anypoint.mulesoft.com (défaut)
+# GOV : https://gov.anypoint.mulesoft.com
+anypoint.base.url=https://eu1.anypoint.mulesoft.com
 
-Pour changer de région, modifier `anypoint.base.url` :
-- **US** : `https://anypoint.mulesoft.com`
-- **EU** : `https://eu1.anypoint.mulesoft.com`
-- **GOV** : `https://gov.anypoint.mulesoft.com`
+# === Gestion des Tokens ===
+token.ttl=3500                    # Durée de vie du token en secondes
 
-### Object Store Configuration
+# === Paramètres par défaut ===
+default.timeseries=P1D             # P1D (jour), P1M (mois)
+default.days.back=30               # Historique par défaut
+```
 
-L'Object Store pour le cache de token est configuré avec :
-- **Persistant** : Non (mémoire)
-- **Max Entries** : 10
-- **Entry TTL** : 3500 secondes
-- **TTL Unit** : SECONDS
+### 2. Configuration du Monitoring (`usage-monitor-scheduler.xml`)
+
+```xml
+<!-- Limites pour les alertes -->
+<global-property name="limit.flows.warning" value="250" />      <!-- 80% de 300 -->
+<global-property name="limit.flows.critical" value="300" />     <!-- Limite max -->
+<global-property name="limit.governed.warning" value="9" />     <!-- 75% de 12 -->
+<global-property name="limit.governed.critical" value="12" />   <!-- Limite max -->
+<global-property name="limit.managed.warning" value="9" />      <!-- Par env type -->
+<global-property name="limit.managed.critical" value="12" />    
+
+<!-- Organisation à monitorer -->
+<global-property name="org.id" value="f22cd53d-c1ea-482e-a6e6-2d367ba7e48e" />
+<global-property name="org.name" value="BNDE" />
+
+<!-- Canal Slack pour les alertes -->
+<global-property name="slack.channel" value="#bnde-alerts" />
+```
+
+### 3. Configuration Slack
+
+1. **Créer une App Slack** : https://api.slack.com/apps
+2. **Ajouter OAuth Scopes** : `chat:write`
+3. **Installer dans votre workspace**
+4. **Configurer dans l'API** :
+   - Consumer Key : `917880024448.9410043447527`
+   - Consumer Secret : `615fc735ba92562890cca25be24b6989`
+   - Callback URL : `https://localhost:8081/callback`
 
 ## 📁 Structure du projet
 
 ```
 usage-metrics-api/
-├── src/
-│   ├── main/
-│   │   ├── mule/
-│   │   │   └── usage-metrics-api.xml    # Configuration des flux
-│   │   └── resources/
-│   │       ├── config.properties        # Configuration
-│   │       └── log4j2.xml              # Configuration logs
-│   └── test/
-│       └── resources/
-│           └── log4j2-test.xml         # Logs pour tests
-├── pom.xml                              # Configuration Maven
-├── mule-artifact.json                   # Métadonnées Mule
-├── exchange-docs/                       # Documentation Exchange
-└── README.md                           # Cette documentation
+├── 📁 src/
+│   ├── 📁 main/
+│   │   ├── 📁 mule/
+│   │   │   ├── 📄 usage-metrics-api.xml         # API principale
+│   │   │   └── 📄 usage-monitor-scheduler.xml   # Monitoring & alertes
+│   │   └── 📁 resources/
+│   │       ├── 📄 config.properties             # Configuration
+│   │       └── 📄 log4j2.xml                    # Logs configuration
+│   └── 📁 test/
+│       └── 📁 resources/
+│           └── 📄 log4j2-test.xml               # Logs tests
+├── 📄 pom.xml                                    # Dépendances Maven
+├── 📄 mule-artifact.json                         # Métadonnées Mule
+├── 📄 .gitignore                                 # Git exclusions
+└── 📄 README.md                                  # Documentation
 ```
 
-## 📡 Flux et Endpoints
+## 📡 API Reference
 
-### 1. Token Management
+### Endpoints Disponibles
 
-**Sub-flow: `get-access-token`**
-- Vérifie le cache Object Store
-- Génère un nouveau token si nécessaire
-- Stocke le token pour réutilisation
+| Méthode | Endpoint | Description | Authentification |
+|---------|----------|-------------|------------------|
+| GET | `/api/meters` | Liste des métriques disponibles | Non |
+| POST | `/api/dashboard` | Dashboard agrégé complet | Non |
+| POST | `/api/metrics/runtime-flows` | Flux runtime détaillés | Non |
+| POST | `/api/metrics/api-manager` | APIs managées par env | Non |
+| POST | `/api/metrics/governed-apis` | APIs gouvernées | Non |
+| POST | `/api/metrics/network-usage` | Usage réseau | Non |
+| GET | `/api/test-monitor` | Test manuel du monitoring | Non |
+| OPTIONS | `/*` | Support CORS | Non |
 
-**Sub-flow: `generate-new-token`**
-- Appel OAuth2 Client Credentials
-- Parse et stocke le token
-- TTL: 3500 secondes
+### Exemples d'Utilisation
 
-### 2. Endpoints API
+#### 1. Dashboard Complet
 
-#### GET /api/meters
-**Description** : Liste tous les meters disponibles
-
-**Réponse** :
-```json
-{
-  "meters": [
-    "runtime_flow_count",
-    "api_manager_api_instance_count_prod",
-    "api_manager_api_instance_count_preprod",
-    "api_manager_api_instance_count_unclassified",
-    "governed_api_count",
-    "runtime_network_bytes_count"
-  ]
-}
-```
-
-#### POST /api/dashboard
-**Description** : Agrège toutes les métriques en une seule requête
-
-**Requête** :
-```json
-{
-  "startTime": 1704067200000,
-  "endTime": 1706745599000,
-  "timeSeries": "P1D",
-  "orgId": "f22cd53d-c1ea-482e-a6e6-2d367ba7e48e",
-  "envType": "production"  // Optionnel
-}
+```bash
+curl -X POST http://localhost:8081/api/dashboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "startTime": 1704067200000,
+    "endTime": 1706745599000,
+    "timeSeries": "P1D",
+    "orgId": "f22cd53d-c1ea-482e-a6e6-2d367ba7e48e",
+    "envType": "production"
+  }'
 ```
 
 **Réponse** :
@@ -240,322 +293,354 @@ usage-metrics-api/
   "success": true,
   "timestamp": "2024-01-31T12:00:00Z",
   "data": {
-    "runtimeFlows": { /* données */ },
-    "apiManager": { /* données */ },
-    "governedApis": { /* données */ },
+    "runtimeFlows": {
+      "data": [
+        {
+          "org_id": "f22cd53d-c1ea-482e-a6e6-2d367ba7e48e",
+          "env_name": "Production",
+          "app_name": "order-api",
+          "mule_flow_count": 45
+        }
+      ]
+    },
+    "apiManager": {
+      "data": [
+        {
+          "env_type": "production",
+          "managed_api_count": 12
+        }
+      ]
+    },
     "summary": {
       "totalFlows": 1250,
       "totalManagedApis": 45,
       "totalGovernedApis": 38,
       "environments": ["Production", "Sandbox"],
-      "applications": ["App1", "App2"]
+      "applications": ["order-api", "customer-api"]
     }
   }
 }
 ```
 
-#### POST /api/metrics/runtime-flows
-**Description** : Métriques des flux runtime
+#### 2. Métriques Spécifiques
 
-**Query SQL généré** :
-```sql
-SELECT org_id, org_name, env_id, env_name, env_type, 
-       asset_id, app_name, deployment_model, 
-       mule_flow_count, num_workers 
-FROM runtime_flow_count 
-WHERE timestamp between {startTime} and {endTime}
-  AND org_id = '{orgId}'
-TIMESERIES P1D
+```bash
+# Runtime Flows uniquement
+curl -X POST http://localhost:8081/api/metrics/runtime-flows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "startTime": 1704067200000,
+    "endTime": 1706745599000,
+    "timeSeries": "P1M",
+    "envType": "sandbox"
+  }'
 ```
 
-#### POST /api/metrics/api-manager
-**Description** : APIs managées par type d'environnement
+#### 3. Test du Monitoring
 
-**Tables utilisées** :
-- `api_manager_api_instance_count_prod` (production)
-- `api_manager_api_instance_count_preprod` (sandbox/preproduction)
-- `api_manager_api_instance_count_unclassified` (non-classifié)
+```bash
+# Déclenche manuellement la vérification des limites
+curl http://localhost:8081/api/test-monitor
 
-#### POST /api/metrics/governed-apis
-**Description** : APIs sous gouvernance
+# Réponse avec les alertes détectées
+{
+  "success": true,
+  "message": "Test de monitoring terminé",
+  "alertsSent": 2,
+  "alerts": [
+    {
+      "level": "WARNING",
+      "type": "Runtime Flows",
+      "message": "⚠️ ATTENTION - Approche de la limite",
+      "value": 280,
+      "limit": 250
+    }
+  ]
+}
+```
 
-#### POST /api/metrics/network-usage
-**Description** : Utilisation de la bande passante réseau
+### Paramètres de Requête
 
-### 3. CORS Handler
+| Paramètre | Type | Obligatoire | Description | Valeurs |
+|-----------|------|------------|-------------|---------|
+| `startTime` | Number | Oui | Timestamp début (ms) | Ex: 1704067200000 |
+| `endTime` | Number | Oui | Timestamp fin (ms) | Ex: 1706745599000 |
+| `timeSeries` | String | Non | Granularité | P1D, P1M |
+| `orgId` | String | Non | ID Organisation | UUID |
+| `envType` | String | Non | Type environnement | production, sandbox, unclassified |
 
-**Flow: `options-handler`**
-- Gère les requêtes OPTIONS pour CORS
-- Headers configurés :
-  - `Access-Control-Allow-Origin: *`
-  - `Access-Control-Allow-Methods: GET, POST, OPTIONS`
-  - `Access-Control-Allow-Headers: Content-Type, Authorization`
+### Codes de Réponse
 
-## 📊 Métriques Disponibles
+| Code | Description | Action Recommandée |
+|------|-------------|-------------------|
+| 200 | Succès | Traiter les données |
+| 401 | Non autorisé | Vérifier les credentials |
+| 500 | Erreur serveur | Vérifier les logs |
+| 503 | Service indisponible | Réessayer plus tard |
 
-### Runtime Flow Count
-- **Meter** : `runtime_flow_count`
-- **Données** : Nombre de flux Mule par application
-- **Dimensions** : org_id, env_id, app_name
+## 🔔 Monitoring & Alertes
 
-### API Manager Instance Count
-- **Meters** : 
-  - `api_manager_api_instance_count_prod`
-  - `api_manager_api_instance_count_preprod`
-  - `api_manager_api_instance_count_unclassified`
-- **Données** : APIs managées par environnement
-- **Dimensions** : org_id, env_type, runtime
+### Configuration des Alertes
 
-### Governed API Count
-- **Meter** : `governed_api_count`
-- **Données** : APIs gouvernées dans Anypoint
-- **Dimensions** : org_id
+Le système surveille automatiquement 3 types de métriques :
 
-### Network Bytes Count
-- **Meter** : `runtime_network_bytes_count`
-- **Données** : Bytes transférés sur le réseau
-- **Dimensions** : org_id, env_id, app_name
+| Métrique | Warning | Critical | Fréquence |
+|----------|---------|----------|-----------|
+| **Runtime Flows** | 250 | 300 | Horaire |
+| **Governed APIs** | 9 | 12 | Horaire |
+| **Managed APIs** | 9 | 12 | Horaire |
 
-### TimeSeries Support
+### Format des Alertes Slack
 
-- **P1D** : Données journalières (max 30 jours)
-- **P1M** : Données mensuelles (pour périodes > 30 jours)
-- **P1H** : Données horaires (pour analyses détaillées)
+Les alertes sont structurées avec :
+- **Niveau** : 🚨 CRITICAL ou ⚠️ WARNING
+- **Type** : Métrique concernée
+- **Détails** : Valeur actuelle vs limite
+- **Timestamp** : Heure de détection
+- **Environnement** : Si applicable
+
+Exemple d'alerte Slack :
+```
+🚨 ALERTE CRITIQUE - Anypoint Usage Monitor
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Runtime Flows
+Limite de flux runtime dépassée!
+• Valeur actuelle : 305 flux
+• Limite : 300
+• Environnement : PRODUCTION
+• Timestamp : 2024-01-31 14:30:00
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Historique des Alertes
+
+- Stocké dans Object Store pendant 30 jours
+- Consultable via les logs
+- Format JSON pour intégration externe
 
 ## 💻 Développement
 
-### Environnement de développement
+### Environnement Local
 
-1. **Anypoint Studio**
-   - Import du projet comme Mule Application
-   - Configuration automatique des dépendances
+```bash
+# 1. Installation des dépendances
+mvn clean install
 
-2. **VS Code / IntelliJ**
-   - Extensions Mule/DataWeave recommandées
-   - Maven pour build et tests
+# 2. Démarrage en mode debug
+mvn mule:run -Dmule.env=dev -Dmule.debug=true
+
+# 3. Attachement debugger (port 5005)
+# Dans Studio ou IDE : Remote Debug Configuration
+```
 
 ### Tests
 
 ```bash
-# Lancer les tests MUnit
+# Tests unitaires MUnit
 mvn test
 
 # Tests avec coverage
 mvn clean test munit:coverage-report
+
+# Rapport disponible dans : target/site/munit/coverage/
 ```
 
-### Debug
-
-1. **Dans Studio** :
-   - Debug As > Mule Application
-   - Breakpoints supportés dans les flux
-
-2. **Logs** :
-   - Niveau INFO par défaut
-   - Fichier : `logs/usage-metrics-api.log`
-   - Console en mode dev
-
-### DataWeave Tips
+### Bonnes Pratiques DataWeave
 
 ```dataweave
-// Gestion des valeurs nulles
+// Gestion des nulls avec valeur par défaut
 payload.orgId default ""
 
-// Formatage des timestamps
+// Formatage des dates
 now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"}
 
-// Agrégation
-sum(payload.data.mule_flow_count default [])
+// Agrégation sécurisée
+sum(payload.data.mule_flow_count default []) default 0
 
-// Distinct values
+// Filtrage des doublons
 (payload.data.env_name default []) distinctBy $
+
+// Transformation conditionnelle
+if (lower(payload.envType) == "production") 
+  "PROD" 
+else if (lower(payload.envType) == "sandbox") 
+  "PREPROD"
+else 
+  "UNCLASSIFIED"
+```
+
+### Structure des Logs
+
+```
+# Niveau INFO - Opérations normales
+INFO  2024-01-31 14:30:00 [MONITOR] Début de la vérification des limites
+INFO  2024-01-31 14:30:05 [MONITOR] Nombre total de flux runtime: 280 / 300
+
+# Niveau WARN - Approche des limites
+WARN  2024-01-31 14:30:10 [MONITOR] Limite WARNING atteinte: Runtime Flows (280/250)
+
+# Niveau ERROR - Erreurs techniques
+ERROR 2024-01-31 14:30:15 [MONITOR] Erreur Slack API: Connection timeout
 ```
 
 ## 🚀 Déploiement
 
-### CloudHub
+### CloudHub 2.0
 
 ```bash
 # Déploiement via Maven
-mvn mule:deploy -DmuleDeploy.uri=https://anypoint.mulesoft.com \
-  -DmuleDeploy.username=YOUR_USERNAME \
-  -DmuleDeploy.password=YOUR_PASSWORD \
-  -DmuleDeploy.environment=Production \
-  -DmuleDeploy.region=eu-central-1 \
-  -DmuleDeploy.workers=1 \
-  -DmuleDeploy.workerType=MICRO \
-  -DmuleDeploy.applicationName=usage-metrics-api
-
-# Via Anypoint Platform UI
-# Runtime Manager > Deploy Application > Upload usage-metrics-api.jar
+mvn clean deploy -DmuleDeploy \
+  -Danypoint.uri=https://anypoint.mulesoft.com \
+  -Danypoint.username=YOUR_USERNAME \
+  -Danypoint.password=YOUR_PASSWORD \
+  -Danypoint.environment=Production \
+  -Danypoint.region=eu-central-1 \
+  -Danypoint.workers=0.1 \
+  -Danypoint.workerType=MICRO \
+  -Danypoint.applicationName=usage-metrics-api-prod
 ```
 
-### On-Premise (Hybrid)
+### Configuration CloudHub
 
-```bash
-# Copier le JAR dans apps/
-cp target/usage-metrics-api-1.0.0-SNAPSHOT-mule-application.jar $MULE_HOME/apps/
-
-# L'application démarre automatiquement
-tail -f $MULE_HOME/logs/usage-metrics-api.log
+Propriétés à configurer dans Runtime Manager :
+```properties
+http.port=${http.port}
+anypoint.client.id=${secure::anypoint.client.id}
+anypoint.client.secret=${secure::anypoint.client.secret}
+slack.webhook.url=${secure::slack.webhook.url}
 ```
 
-### Docker
+### Docker (On-Premise)
 
 ```dockerfile
 # Dockerfile
-FROM mulesoft/mule-runtime:4.9.8
-COPY target/*.jar /opt/mule/apps/
+FROM mulesoft/mule-runtime:4.9.8-java17
+COPY target/usage-metrics-api-*.jar /opt/mule/apps/
+ENV MULE_ENV=prod
 EXPOSE 8081
 ```
 
 ```bash
-docker build -t usage-metrics-api .
-docker run -p 8081:8081 usage-metrics-api
+# Build et run
+docker build -t usage-metrics-api:latest .
+docker run -d \
+  -p 8081:8081 \
+  -e ANYPOINT_CLIENT_ID=xxx \
+  -e ANYPOINT_CLIENT_SECRET=xxx \
+  --name usage-metrics \
+  usage-metrics-api:latest
 ```
-
-## 📈 Monitoring
-
-### Health Check
-
-```bash
-# Endpoint santé simple
-curl http://localhost:8081/api/meters
-
-# Vérifier le token
-curl -X POST http://localhost:8081/api/dashboard \
-  -H "Content-Type: application/json" \
-  -d '{"startTime": 1704067200000, "endTime": 1706745599000}'
-```
-
-### Métriques JMX
-
-Activer JMX pour monitoring :
-```properties
-# wrapper.conf ou arguments JVM
--Dcom.sun.management.jmxremote
--Dcom.sun.management.jmxremote.port=1099
--Dcom.sun.management.jmxremote.authenticate=false
-```
-
-### Logs
-
-Configuration dans `log4j2.xml` :
-- **Level** : INFO en production, DEBUG en dev
-- **Rolling** : 10MB par fichier, max 10 fichiers
-- **Pattern** : Inclut correlationId et processorPath
 
 ## 🔧 Dépannage
 
-### Problèmes Courants
+### Problèmes Fréquents et Solutions
 
-#### 1. Erreur d'authentification
+#### 1. Erreur 401 - Authentification
 
-```
-Error: HTTP:UNAUTHORIZED
-```
+**Symptôme** : `HTTP:UNAUTHORIZED`
 
 **Solutions** :
-- Vérifier client_id et client_secret
-- Vérifier les permissions sur Anypoint
-- Tester directement l'API :
-
 ```bash
+# Vérifier les credentials
 curl -X POST https://eu1.anypoint.mulesoft.com/accounts/api/v2/oauth2/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "client_credentials",
-    "client_id": "YOUR_ID",
-    "client_secret": "YOUR_SECRET"
-  }'
+  -d "grant_type=client_credentials" \
+  -d "client_id=YOUR_ID" \
+  -d "client_secret=YOUR_SECRET"
+
+# Vérifier les permissions dans Anypoint
+# Access Management > Connected Apps > Votre App > Scopes
 ```
 
-#### 2. Pas de données retournées
+#### 2. Pas de Données Retournées
+
+**Causes possibles** :
+- Délai de 3 jours pour les données Usage API
+- Mauvais Organization ID
+- TimeSeries inapproprié
+
+**Debug** :
+```bash
+# Vérifier l'org ID
+curl http://localhost:8081/api/meters
+
+# Tester avec une période plus large
+{
+  "startTime": 1672531200000,  # 1 Jan 2023
+  "endTime": 1706745599000,    # 31 Jan 2024
+  "timeSeries": "P1M"           # Mensuel pour grandes périodes
+}
+```
+
+#### 3. Alertes Slack Non Reçues
 
 **Vérifications** :
-- Les données ont un délai de 3 jours
-- Vérifier l'Organization ID
-- TimeSeries approprié (P1D pour < 30 jours)
-- Filtres d'environnement corrects
+1. Token OAuth Slack valide
+2. Bot ajouté au canal
+3. Permissions `chat:write`
+4. Canal correct dans config
 
-#### 3. Timeout sur les requêtes
-
-**Solutions** :
-- Augmenter le timeout HTTP Request
-- Réduire la période de requête
-- Utiliser P1M pour grandes périodes
-
-#### 4. Object Store errors
-
-```
-OS:KEY_NOT_FOUND
-```
-
-**Normal** lors du premier appel, le token sera généré.
-
-### IDs d'Environnement
-
-Les IDs d'environnement hardcodés dans l'API :
-- **Sandbox/Préproduction** : `1f157a54-15ca-491e-ac7f-77c662f71d9c`
-- **Production** : `242b6f0c-7f5c-4c31-92f1-4257e182e885`
-
-Pour trouver vos IDs :
+**Test manuel** :
 ```bash
-# Via Anypoint CLI
-anypoint-cli env list
-
-# Ou dans Anypoint Platform
-# Access Management > Environments
+curl http://localhost:8081/api/test-monitor
 ```
 
-## 🤝 Contribution
+#### 4. Performance Lente
 
-### Process
+**Optimisations** :
+- Utiliser P1M pour périodes > 30 jours
+- Réduire la période de requête
+- Augmenter les workers CloudHub
+- Vérifier la région (latence)
 
-1. **Fork** le repository
-2. **Feature branch** : `git checkout -b feature/nouvelle-fonctionnalite`
-3. **Tests** : Ajouter des tests MUnit
-4. **Commit** : Messages descriptifs
-5. **Pull Request** : Avec description détaillée
+### Logs Utiles pour Debug
 
-### Standards
+```bash
+# Activer logs DEBUG
+echo "AsyncLogger name=\"org.mule\" level=\"DEBUG\"/>" >> src/main/resources/log4j2.xml
 
-- **Naming** : CamelCase pour flows, kebab-case pour HTTP
-- **Documentation** : Attributs doc:name et doc:id
-- **Error Handling** : Try-Catch avec error handlers spécifiques
-- **DataWeave** : Version 2.0, output types explicites
+# Suivre les logs en temps réel
+tail -f logs/usage-metrics-api.log | grep -E "(ERROR|WARN|MONITOR)"
 
-### Tests MUnit
-
-Structure d'un test :
-```xml
-<munit:test name="test-get-meters">
-    <munit:execution>
-        <http:request method="GET" path="/api/meters"/>
-    </munit:execution>
-    <munit:validation>
-        <munit-tools:assert-that expression="#[attributes.statusCode]" is="#[MunitTools::equalTo(200)]"/>
-    </munit:validation>
-</munit:test>
+# Analyser les tokens
+grep "bearer_token" logs/usage-metrics-api.log
 ```
 
 ## 📚 Ressources
 
-- [Anypoint Usage API Documentation](https://anypoint.mulesoft.com/exchange/portals/anypoint-platform/f1e97bc6-315a-4490-82a7-23abe036327a/usage-api/)
+### Documentation Officielle
+- [Anypoint Usage API](https://anypoint.mulesoft.com/exchange/portals/anypoint-platform/usage-api/)
 - [Mule 4 Documentation](https://docs.mulesoft.com/mule-runtime/4.4/)
-- [DataWeave 2.0 Reference](https://docs.mulesoft.com/dataweave/2.4/)
-- [Object Store Connector](https://docs.mulesoft.com/object-store-connector/latest/)
+- [DataWeave 2.0](https://docs.mulesoft.com/dataweave/2.4/)
+- [Slack API](https://api.slack.com/messaging/sending)
 
-## 📄 Licence
-
-Propriétaire - Voir LICENSE pour plus de détails
+### Exemples et Templates
+- [MuleSoft Examples](https://github.com/mulesoft/examples)
+- [DataWeave Playground](https://dataweave.mulesoft.com/)
 
 ## 👥 Support
 
-- **MuleSoft Support** : https://support.mulesoft.com
-- **Community Forum** : https://help.mulesoft.com
-- **Stack Overflow** : Tag `mulesoft`
+| Canal | Usage | Réponse |
+|-------|-------|---------|
+| **GitHub Issues** | Bugs, feature requests | 48h |
+| **MuleSoft Support** | Issues production | 24h (selon SLA) |
+| **Community Forum** | Questions générales | Variable |
+| **Stack Overflow** | Questions techniques | Variable |
+
+### Contacts Techniques
+
+- **Lead Developer** : knjundja@jasmineconseil.com
+- **Slack Channel** : #bnde-alerts
+
+## 📄 Licence
+
+Propriétaire - © 2025 BNDE. Tous droits réservés.
+
+## 🙏 Remerciements
+
+Développé avec ❤️ pour optimiser l'utilisation d'Anypoint Platform et réduire les coûts opérationnels.
 
 ---
 
-**Développé avec ❤️ pour optimiser l'utilisation d'Anypoint Platform**
+**Version** : 1.0.0-SNAPSHOT  
+**Dernière mise à jour** : Aout 2025  
+**Statut** : 🟢 Production Ready
