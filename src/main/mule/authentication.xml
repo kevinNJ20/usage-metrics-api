@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+
+    <!-- Sous-flow pour obtenir ou rafraîchir le token -->
+    <sub-flow name="get-access-token" doc:name="Get Access Token">
+        <try doc:name="Try">
+            <!-- Vérifier si le token existe dans l'object store -->
+            <os:retrieve doc:name="Retrieve Token" key="bearer_token" objectStore="Token_Store" target="storedToken"/>
+            <choice doc:name="Token Exists?">
+                <when expression="#[vars.storedToken != null]">
+                    <set-variable variableName="accessToken" value="#[vars.storedToken]" doc:name="Use Cached Token"/>
+                </when>
+                <otherwise>
+                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
+                </otherwise>
+            </choice>
+            <error-handler>
+                <on-error-continue type="OS:KEY_NOT_FOUND">
+                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+
+    <!-- Sous-flow pour générer un nouveau token -->
+    <sub-flow name="generate-new-token" doc:name="Generate New Token">
+        <http:request method="POST" doc:name="Request Token" doc:id="a8e328f3-8c66-42e6-9f88-16079ad2ef2a" config-ref="Anypoint_HTTP_Request_config" path="/accounts/api/v2/oauth2/token">
+            <http:body><![CDATA[#[output application/json
+---
+{
+    "grant_type": "client_credentials",
+    "client_id": p('anypoint.client.id'),
+    "client_secret": p('anypoint.client.secret')
+}]]]></http:body>
+        </http:request>
+        <ee:transform doc:name="Extract Token">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload.access_token]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <os:store doc:name="Store Token" key="bearer_token" objectStore="Token_Store">
+            <os:value>#[payload]</os:value>
+        </os:store>
+        <set-variable variableName="accessToken" value="#[payload]" doc:name="Set Token Variable"/>
+    </sub-flow>
+
+</mule>
+

@@ -1,51 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:slack="http://www.mulesoft.org/schema/mule/slack"
+<mule xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams"
+      xmlns:slack="http://www.mulesoft.org/schema/mule/slack"
       xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
       xmlns:os="http://www.mulesoft.org/schema/mule/os"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
         http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-        http://www.mulesoft.org/schema/mule/slack http://www.mulesoft.org/schema/mule/slack/current/mule-slack.xsd">
+        http://www.mulesoft.org/schema/mule/slack http://www.mulesoft.org/schema/mule/slack/current/mule-slack.xsd
+        http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd">
 
     <!-- Configuration Slack -->
-
-    <!-- Variables globales pour les limites -->
-    <global-property name="limit.flows.warning" value="250" />
-    <global-property name="limit.flows.critical" value="300" />
-    <global-property name="limit.governed.warning" value="9" />
-    <global-property name="limit.governed.critical" value="12" />
-    <global-property name="limit.managed.warning" value="9" />
-    <global-property name="limit.managed.critical" value="12" />
-    
-    <!-- Configuration de l'organisation -->
-    <global-property name="org.id" value="f22cd53d-c1ea-482e-a6e6-2d367ba7e48e" />
-    <global-property name="org.name" value="BNDE" />
-    
-    <!-- Configuration Slack -->
-    <global-property name="slack.channel" value="#bnde-alerts" />
+    <slack:config name="Slack_Config" doc:name="Slack Connector Config" doc:id="af0436d2-96c2-479c-807c-4ea9798bef53">
+        <slack:slack-auth-connection>
+            <slack:oauth-authorization-code consumerKey="917880024448.9410043447527" consumerSecret="615fc735ba92562890cca25be24b6989" authorizationUrl="https://slack.com/oauth/v2/authorize" accessTokenUrl="https://slack.com/api/oauth.v2.access" scopes="chat:write"/>
+            <slack:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="https://localhost:8081/callback"/>
+            <slack:oauth-store-config objectStore="Slack_Token_store" />
+        </slack:slack-auth-connection>
+    </slack:config>
 
     <!-- Flow Scheduler principal -->
-    <slack:config name="Slack_Config" doc:name="Slack Connector Config" doc:id="af0436d2-96c2-479c-807c-4ea9798bef53" >
-		<slack:slack-auth-connection >
-			<slack:oauth-authorization-code consumerKey="917880024448.9410043447527" consumerSecret="615fc735ba92562890cca25be24b6989" authorizationUrl="https://slack.com/oauth/v2/authorize" accessTokenUrl="https://slack.com/api/oauth.v2.access" scopes="chat:write"/>
-			<slack:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="https://localhost:8081/callback"/>
-			<slack:oauth-store-config objectStore="Slack_Token_store" />
-		</slack:slack-auth-connection>
-	</slack:config>
-	<os:object-store name="Slack_Token_store" doc:name="Object store" doc:id="dcbf5f33-e4dd-4f7e-80c5-bedf7db9e6b1" maxEntries="5" entryTtl="30" entryTtlUnit="DAYS"/>
-	<flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
+    <flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
         <!-- Scheduler toutes les heures -->
-        <scheduler doc:name="Scheduler - Every Hour">
+        <!-- [STUDIO:"Scheduler - Every Hour"]<scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
                 <fixed-frequency frequency="1" timeUnit="HOURS"/>
             </scheduling-strategy>
-        </scheduler>
+        </scheduler> [STUDIO] -->
         
         <logger level="INFO" doc:name="Logger Start" message="[MONITOR] Début de la vérification des limites d'usage"/>
         
@@ -148,7 +134,7 @@ sum(payload.data.mule_flow_count default []) default 0]]></ee:set-variable>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "CRITICAL",
     "type": "Runtime Flows",
     message: "🚨 **ALERTE CRITIQUE** - Limite de flux runtime dépassée!",
@@ -168,7 +154,7 @@ vars.alerts ++ [{
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "WARNING",
     "type": "Runtime Flows",
     message: "⚠️ **ATTENTION** - Approche de la limite de flux runtime",
@@ -185,7 +171,7 @@ vars.alerts ++ [{
             <error-handler>
                 <on-error-continue type="ANY">
                     <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des flux runtime: " ++ error.description]'/>
+                           message='#["[MONITOR] Erreur lors de la vérification des flux runtime: " ++ (error.description default "Erreur inconnue")]'/>
                 </on-error-continue>
             </error-handler>
         </try>
@@ -244,7 +230,7 @@ max(payload.data.governed_api_count default [0]) default 0]]></ee:set-variable>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "CRITICAL",
     "type": "Governed APIs",
     message: "🚨 **ALERTE CRITIQUE** - Limite d'APIs gouvernées atteinte!",
@@ -264,7 +250,7 @@ vars.alerts ++ [{
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "WARNING",
     "type": "Governed APIs",
     message: "⚠️ **ATTENTION** - Approche de la limite d'APIs gouvernées",
@@ -281,7 +267,7 @@ vars.alerts ++ [{
             <error-handler>
                 <on-error-continue type="ANY">
                     <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des APIs gouvernées: " ++ error.description]'/>
+                           message='#["[MONITOR] Erreur lors de la vérification des APIs gouvernées: " ++ (error.description default "Erreur inconnue")]'/>
                 </on-error-continue>
             </error-handler>
         </try>
@@ -358,7 +344,7 @@ max(payload.data.managed_api_count default [0]) default 0]]></ee:set-variable>
                                 <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "CRITICAL",
     "type": "Managed APIs - " ++ vars.currentEnvType,
     message: "🚨 **ALERTE CRITIQUE** - Limite d'APIs managées dépassée (" ++ vars.currentEnvType ++ ")!",
@@ -379,7 +365,7 @@ vars.alerts ++ [{
                                 <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
 ---
-vars.alerts ++ [{
+(vars.alerts default []) ++ [{
     level: "WARNING",
     "type": "Managed APIs - " ++ vars.currentEnvType,
     message: "⚠️ **ATTENTION** - Approche de la limite d'APIs managées (" ++ vars.currentEnvType ++ ")",
@@ -398,7 +384,7 @@ vars.alerts ++ [{
             <error-handler>
                 <on-error-continue type="ANY">
                     <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des APIs managées: " ++ error.description]'/>
+                           message='#["[MONITOR] Erreur lors de la vérification des APIs managées: " ++ (error.description default "Erreur inconnue")]'/>
                 </on-error-continue>
             </error-handler>
         </try>
@@ -454,7 +440,7 @@ output application/json
         </ee:transform>
         
         <slack:create-chatpost-message doc:name="Post Message to Slack" doc:id="032e1c60-6515-486c-969f-f8a109137508" config-ref="Slack_Config"/>
-		<logger level="INFO" doc:name="Log Success" 
+        <logger level="INFO" doc:name="Log Success" 
                message='#["[MONITOR] " ++ sizeOf(vars.alerts) ++ " alerte(s) envoyée(s) sur Slack"]'/>
         
         <!-- Sauvegarder l'historique des alertes dans Object Store (optionnel) -->
@@ -478,14 +464,6 @@ output application/json
             <os:value>#[payload]</os:value>
         </os:store>
     </sub-flow>
-
-    <!-- Object Store pour l'historique des alertes -->
-    <os:object-store name="Alert_History_Store" 
-                      doc:name="Alert History Store" 
-                      persistent="true" 
-                      maxEntries="100" 
-                      entryTtl="30" 
-                      entryTtlUnit="DAYS"/>
 
     <!-- Flow manuel pour tester le monitoring -->
     <flow name="test-monitor-flow" doc:name="Test Monitor Flow">

@@ -1,88 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
-      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-      xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
-
-    <!-- Configuration HTTP Listener -->
-
-    <!-- Configuration HTTP Request pour Anypoint APIs -->
-    <http:request-config name="Anypoint_HTTP_Request_config" doc:name="HTTP Request config">
-        <http:request-connection host="eu1.anypoint.mulesoft.com" protocol="HTTPS" port="443" />
-    </http:request-config>
-
-    <!-- Object Store pour stocker le token -->
-    <os:object-store name="Token_Store" doc:name="Object store" persistent="false" maxEntries="10" entryTtl="3500" entryTtlUnit="SECONDS"/>
-
-    <!-- Configuration globale -->
-    <configuration-properties file="config.properties"/>
-
-    <!-- Sous-flow pour obtenir ou rafraîchir le token -->
-    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b95be154-a770-461b-8cbc-42a31e9a8e2e" >
-		<http:listener-connection host="0.0.0.0" port="${http.port}">
-		</http:listener-connection>
-	</http:listener-config>
-	<sub-flow name="get-access-token" doc:name="Get Access Token">
-        <try doc:name="Try">
-            <!-- Vérifier si le token existe dans l'object store -->
-            <os:retrieve doc:name="Retrieve Token" key="bearer_token" objectStore="Token_Store" target="storedToken"/>
-            <choice doc:name="Token Exists?">
-                <when expression="#[vars.storedToken != null]">
-                    <set-variable variableName="accessToken" value="#[vars.storedToken]" doc:name="Use Cached Token"/>
-                </when>
-                <otherwise>
-                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
-                </otherwise>
-            </choice>
-            <error-handler>
-                <on-error-continue type="OS:KEY_NOT_FOUND">
-                    <flow-ref name="generate-new-token" doc:name="Generate New Token"/>
-                </on-error-continue>
-            </error-handler>
-        </try>
-    </sub-flow>
-
-    <!-- Sous-flow pour générer un nouveau token -->
-    <sub-flow name="generate-new-token" doc:name="Generate New Token">
-        <!-- [STUDIO:"Request Token"]<http:request method="POST" path="/accounts/api/v2/oauth2/token" doc:id="fad6bf0a-1c31-4421-9bef-3cee59e6af3e" config-ref="Anypoint_HTTP_Request_config" doc:name="Request Token">
-            <http:body><![CDATA[#[output application/json
-&#45;&#45;-
-{
-    "grant_type": "client_credentials",
-    "client_id": p('anypoint.client.id'),
-    "client_secret": p('anypoint.client.secret')
-}&#93;&#93;&#93;></http:body>
-        </http:request> [STUDIO] -->
-        <http:request method="POST" doc:name="Request Token" doc:id="a8e328f3-8c66-42e6-9f88-16079ad2ef2a" config-ref="Anypoint_HTTP_Request_config" path="/accounts/api/v2/oauth2/token">
-			<http:body ><![CDATA[#[output application/json
----
-{
-    "grant_type": "client_credentials",
-    "client_id": p('anypoint.client.id'),
-    "client_secret": p('anypoint.client.secret')
-}]]]></http:body>
-		</http:request>
-		<ee:transform doc:name="Extract Token">
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/java
----
-payload.access_token]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
-        <os:store doc:name="Store Token" key="bearer_token" objectStore="Token_Store">
-            <os:value>#[payload]</os:value>
-        </os:store>
-        <set-variable variableName="accessToken" value="#[payload]" doc:name="Set Token Variable"/>
-    
-</sub-flow>
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
     <!-- Flow principal - Get Available Meters -->
     <flow name="get-meters" doc:name="Get Available Meters">
@@ -97,10 +22,10 @@ payload.access_token]]></ee:set-payload>
         </http:listener>
         <flow-ref name="get-access-token" doc:name="Get Token"/>
         <http:request method="GET" path="/metering/usage/api/v1/meters:describe" doc:id="a69b337f-b247-4b2f-a525-434fcaf3e605" config-ref="Anypoint_HTTP_Request_config" doc:name="Get Meters">
-			<http:headers><![CDATA[#[output application/java
+            <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken
+    "Authorization" : "Bearer "  ++ vars.accessToken
 }]]]></http:headers>
         </http:request>
         <ee:transform doc:name="Transform Response">
@@ -111,9 +36,8 @@ output application/json
 payload]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-		<logger level="INFO" doc:name="Logger" doc:id="2b4ab41a-6fa3-4177-8d65-3ab9d41743cb" message='#["requete executee : GET /metering/usage/api/v1/meters:describe"]'/>
-    
-</flow>
+        <logger level="INFO" doc:name="Logger" doc:id="2b4ab41a-6fa3-4177-8d65-3ab9d41743cb" message='#["requete executee : GET /metering/usage/api/v1/meters:describe"]'/>
+    </flow>
 
     <!-- Flow - Get Runtime Flows Metrics -->
     <flow name="get-runtime-flows" doc:name="Get Runtime Flows">
@@ -139,23 +63,23 @@ output application/json
            ++ (payload.endTime as Number) 
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>
         <logger level="INFO" doc:name="Logger" doc:id="9ec9a24d-c6fd-4f00-9b7d-ee1f7d2ab3c0" message='#[payload]'/>
-		<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="97f51e0d-1df0-4b5a-b5ee-083e048c8769" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Runtime Flows">
-            <http:body ><![CDATA[#[output application/json
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="97f51e0d-1df0-4b5a-b5ee-083e048c8769" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Runtime Flows">
+            <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-			<http:headers><![CDATA[#[output application/java
+            <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
         </http:request>
         <ee:transform doc:name="Format Response">
@@ -170,8 +94,7 @@ output application/json
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-    
-</flow>
+    </flow>
 
     <!-- Flow - Get API Manager Metrics by Environment Type -->
     <flow name="get-api-manager-metrics" doc:name="Get API Manager Metrics">
@@ -201,8 +124,8 @@ output application/json
            ++ (payload.endTime as Number)
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
 }]]></ee:set-payload>
@@ -221,8 +144,8 @@ output application/json
            ++ " and " 
            ++ (payload.endTime as Number) 
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
@@ -242,8 +165,8 @@ output application/json
            ++ " and " 
            ++ (payload.endTime as Number) 
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
@@ -254,15 +177,15 @@ output application/json
         </choice>
         
         <logger level="INFO" doc:name="Logger" doc:id="3a6c48e3-3f30-4bba-9a0a-d3c22c937f72" message='#[payload]'/>
-		<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="4a941d0d-16bf-461c-8016-487f6ace5278" config-ref="Anypoint_HTTP_Request_config" doc:name="Search API Manager">
-            <http:body ><![CDATA[#[output application/json
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="4a941d0d-16bf-461c-8016-487f6ace5278" config-ref="Anypoint_HTTP_Request_config" doc:name="Search API Manager">
+            <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-			<http:headers><![CDATA[#[output application/java
+            <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
         </http:request>
         <ee:transform doc:name="Format Response">
@@ -303,23 +226,23 @@ output application/json
            ++ (payload.endTime as Number) 
            ++ (if (payload.orgId != null) " and org_id = '" ++ payload.orgId ++ "'" else "")
            ++ (if (payload.envType != null and (lower(payload.envType) == "sandbox") or (lower(payload.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (payload.envType != null and (lower(payload.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ " TIMESERIES " ++ (payload.timeSeries default "P1D")
-           }]]></ee:set-payload>
+}]]></ee:set-payload>
             </ee:message>
         </ee:transform>
         <logger level="INFO" doc:name="Logger" doc:id="56c7440c-f187-4812-b84f-cfb4f0f3f49a" message="#[payload]"/>
-		<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="388a259c-8496-4433-98e6-96171a3d0825" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Network Usage">
-            <http:body ><![CDATA[#[output application/json
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="388a259c-8496-4433-98e6-96171a3d0825" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Network Usage">
+            <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-			<http:headers><![CDATA[#[output application/java
+            <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
         </http:request>
         <ee:transform doc:name="Format Response">
@@ -364,15 +287,15 @@ output application/json
             </ee:message>
         </ee:transform>
         <logger level="INFO" doc:name="Logger" doc:id="41aa78a5-4bd8-4b69-adf5-6faca881d4e2" message="#[payload]"/>
-		<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="4b2ff66a-d545-48d9-a9cd-1c9189b29713" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Governed APIs">
-            <http:body ><![CDATA[#[output application/json
+        <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="4b2ff66a-d545-48d9-a9cd-1c9189b29713" config-ref="Anypoint_HTTP_Request_config" doc:name="Search Governed APIs">
+            <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-			<http:headers><![CDATA[#[output application/java
+            <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
         </http:request>
         <ee:transform doc:name="Format Response">
@@ -418,36 +341,35 @@ output application/json
            ++ " and " 
            ++ (vars.requestParams.endTime as Number)
            ++ (if (vars.requestParams.envType != null and (lower(vars.requestParams.envType) == "sandbox") or (lower(vars.requestParams.envType) == "preproduction")) " and env_id = '1f157a54-15ca-491e-ac7f-77c662f71d9c'"
-           		else if (vars.requestParams.envType != null and (lower(vars.requestParams.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
-           		else ""
+                else if (vars.requestParams.envType != null and (lower(vars.requestParams.envType) == "production")) " and env_id = '242b6f0c-7f5c-4c31-92f1-4257e182e885'"
+                else ""
            )
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
 }]]></ee:set-payload>
                     </ee:message>
                 </ee:transform>
                 <logger level="INFO" doc:name="Logger" doc:id="98303ee9-bac2-4e80-9895-61734cf54133" message="#[payload]"/>
-				<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="5d37c0ae-f2fc-4764-84a8-0c1c6873917a" config-ref="Anypoint_HTTP_Request_config" doc:name="Get Runtime Flows">
-                    <http:body ><![CDATA[#[output application/json
+                <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="5d37c0ae-f2fc-4764-84a8-0c1c6873917a" config-ref="Anypoint_HTTP_Request_config" doc:name="Get Runtime Flows">
+                    <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-					<http:headers><![CDATA[#[output application/java
+                    <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
                 </http:request>
                 <ee:transform doc:name="Set Runtime Flows">
                     <ee:message>
                     </ee:message>
-					<ee:variables >
-						<ee:set-variable variableName="runtimeFlows" ><![CDATA[%dw 2.0
+                    <ee:variables>
+                        <ee:set-variable variableName="runtimeFlows"><![CDATA[%dw 2.0
 output application/json
 ---
 { runtimeFlows: payload }]]></ee:set-variable>
-					</ee:variables>
-                
-</ee:transform>
+                    </ee:variables>
+                </ee:transform>
             </route>
             
             <!-- API Manager Metrics -->
@@ -465,8 +387,7 @@ output application/json
            ++ " and " 
            ++ (vars.requestParams.endTime as Number)
            ++ " TIMESERIES " ++ (vars.requestParams.timeSeries default "P1D")
-           
-           }]]></ee:set-payload>
+}]]></ee:set-payload>
                             </ee:message>
                         </ee:transform>
                     </when>
@@ -504,28 +425,27 @@ output application/json
                     </otherwise>
                 </choice>
                 <logger level="INFO" doc:name="Logger" doc:id="bf1043d8-7d3b-4ac6-a5db-4c62beb7ac86" message="#[payload]"/>
-				<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="04499c26-a249-4b46-b72f-56abd0da61e9" config-ref="Anypoint_HTTP_Request_config" doc:name="Get API Manager">
-                    <http:body ><![CDATA[#[output application/json
+                <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="04499c26-a249-4b46-b72f-56abd0da61e9" config-ref="Anypoint_HTTP_Request_config" doc:name="Get API Manager">
+                    <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-					<http:headers><![CDATA[#[output application/java
+                    <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
                 </http:request>
                 <ee:transform doc:name="Set API Manager">
                     <ee:message>
                     </ee:message>
-					<ee:variables >
-						<ee:set-variable variableName="apiManager" ><![CDATA[%dw 2.0
+                    <ee:variables>
+                        <ee:set-variable variableName="apiManager"><![CDATA[%dw 2.0
 output application/json
 ---
 { apiManager: payload }]]></ee:set-variable>
-					</ee:variables>
-                
-</ee:transform>
+                    </ee:variables>
+                </ee:transform>
             </route>
             
             <!-- Governed APIs -->
@@ -545,28 +465,27 @@ output application/json
                     </ee:message>
                 </ee:transform>
                 <logger level="INFO" doc:name="Logger" doc:id="2b8b4a80-3f8c-4561-a84f-129e8a50f20c" message="#[payload]"/>
-				<http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="74064975-3d8e-415f-8623-743c99501cec" config-ref="Anypoint_HTTP_Request_config" doc:name="Get Governed APIs">
-                    <http:body ><![CDATA[#[output application/json
+                <http:request method="POST" path="/metering/usage/api/v1/meters:search" doc:id="74064975-3d8e-415f-8623-743c99501cec" config-ref="Anypoint_HTTP_Request_config" doc:name="Get Governed APIs">
+                    <http:body><![CDATA[#[output application/json
 ---
 payload]]]></http:body>
-					<http:headers><![CDATA[#[output application/java
+                    <http:headers><![CDATA[#[output application/java
 ---
 {
-	"Authorization" : "Bearer "  ++ vars.accessToken,
-	"content-type" : "application/json"
+    "Authorization" : "Bearer "  ++ vars.accessToken,
+    "content-type" : "application/json"
 }]]]></http:headers>
                 </http:request>
                 <ee:transform doc:name="Set Governed APIs">
                     <ee:message>
                     </ee:message>
-					<ee:variables >
-						<ee:set-variable variableName="governedApis" ><![CDATA[%dw 2.0
+                    <ee:variables>
+                        <ee:set-variable variableName="governedApis"><![CDATA[%dw 2.0
 output application/json
 ---
 { governedApis: payload }]]></ee:set-variable>
-					</ee:variables>
-                
-</ee:transform>
+                    </ee:variables>
+                </ee:transform>
             </route>
         </scatter-gather>
         
@@ -618,41 +537,4 @@ output application/json
         </ee:transform>
     </flow>
 
-    <!-- Global Error Handler -->
-    <error-handler name="Global_Error_Handler" doc:name="Global Error Handler">
-        <on-error-propagate type="HTTP:UNAUTHORIZED">
-            <ee:transform doc:name="Unauthorized Response">
-                <ee:message>
-                    <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-    success: false,
-    error: "Authentication failed",
-    message: error.description
-}]]></ee:set-payload>
-                </ee:message>
-                <ee:variables>
-                    <ee:set-variable variableName="httpStatus"><![CDATA[401]]></ee:set-variable>
-                </ee:variables>
-            </ee:transform>
-        </on-error-propagate>
-        <on-error-propagate type="ANY">
-            <ee:transform doc:name="Error Response">
-                <ee:message>
-                    <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-    success: false,
-    error: error.errorType.identifier,
-    message: error.description
-}]]></ee:set-payload>
-                </ee:message>
-                <ee:variables>
-                    <ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
-                </ee:variables>
-            </ee:transform>
-        </on-error-propagate>
-    </error-handler>
 </mule>
