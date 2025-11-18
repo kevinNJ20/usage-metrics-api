@@ -67,7 +67,7 @@ now() as String]]></ee:set-variable>
         
         <!-- Envoyer les alertes si nécessaire -->
         <choice doc:name="Send Alerts if Needed">
-            <when expression="#[sizeOf(vars.alerts) > 0]">
+            <when expression="#[sizeOf(vars.alerts default []) > 0]">
                 <flow-ref name="send-slack-alerts" doc:name="Send Slack Alerts"/>
             </when>
             <otherwise>
@@ -401,7 +401,7 @@ output application/json
     channel: p('slack.channel'),
     text: if (vars.hasCritical) "🚨 Alertes Critiques - Anypoint Usage Monitor" 
           else "⚠️ Alertes Warning - Anypoint Usage Monitor",
-    attachments: vars.alerts map ((alert, index) -> {
+    attachments: (vars.alerts default []) map ((alert, index) -> {
         color: if (alert.level == "CRITICAL") "danger" else "warning",
         title: alert.message,
         text: alert.details,
@@ -441,7 +441,7 @@ output application/json
         
         <slack:create-chatpost-message doc:name="Post Message to Slack" doc:id="032e1c60-6515-486c-969f-f8a109137508" config-ref="Slack_Config"/>
         <logger level="INFO" doc:name="Log Success" 
-               message='#["[MONITOR] " ++ sizeOf(vars.alerts) ++ " alerte(s) envoyée(s) sur Slack"]'/>
+               message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoyée(s) sur Slack"]'/>
         
         <!-- Sauvegarder l'historique des alertes dans Object Store (optionnel) -->
         <ee:transform doc:name="Prepare Alert History">
@@ -451,7 +451,7 @@ output application/json
 ---
 {
     timestamp: now(),
-    alerts: vars.alerts,
+    alerts: vars.alerts default [],
     hasWarnings: vars.hasWarnings,
     hasCritical: vars.hasCritical
 }]]></ee:set-payload>
