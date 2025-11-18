@@ -399,7 +399,7 @@ output application/json
 ---
 {
     channel: p('slack.channel'),
-    text: if (vars.hasCritical) "🚨 Alertes Critiques - Anypoint Usage Monitor" 
+    text: if (vars.hasCritical default false) "🚨 Alertes Critiques - Anypoint Usage Monitor" 
           else "⚠️ Alertes Warning - Anypoint Usage Monitor",
     attachments: (vars.alerts default []) map ((alert, index) -> {
         color: if (alert.level == "CRITICAL") "danger" else "warning",
@@ -452,8 +452,8 @@ output application/json
 {
     timestamp: now(),
     alerts: vars.alerts default [],
-    hasWarnings: vars.hasWarnings,
-    hasCritical: vars.hasCritical
+    hasWarnings: vars.hasWarnings default false,
+    hasCritical: vars.hasCritical default false
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>

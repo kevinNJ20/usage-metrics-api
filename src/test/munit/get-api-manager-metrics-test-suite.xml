@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="get-api-manager-metrics-test-suite.xml" />
+
+    <munit:test name="get-api-manager-metrics-production-test" description="Test du flow get-api-manager-metrics pour production">
+        <munit:execution>
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "startTime": (now() - |PT30D|) as Number {unit: "milliseconds"},
+    "endTime": now() as Number {unit: "milliseconds"},
+    "envType": "production",
+    "timeSeries": "P1D"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+            <http:request method="POST" path="/api/metrics/api-manager" config-ref="HTTP_Request_configuration_api_manager">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[output application/java
+---
+{
+    "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[attributes.statusCode]" is="#[MunitTools::equalTo(200)]"/>
+            <munit-tools:assert-that expression="#[payload.success]" is="#[MunitTools::equalTo(true)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="get-api-manager-metrics-sandbox-test" description="Test du flow get-api-manager-metrics pour sandbox">
+        <munit:execution>
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "startTime": (now() - |PT30D|) as Number {unit: "milliseconds"},
+    "endTime": now() as Number {unit: "milliseconds"},
+    "envType": "sandbox",
+    "timeSeries": "P1D"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+            <http:request method="POST" path="/api/metrics/api-manager" config-ref="HTTP_Request_configuration_api_manager">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[output application/java
+---
+{
+    "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[attributes.statusCode]" is="#[MunitTools::equalTo(200)]"/>
+            <munit-tools:assert-that expression="#[payload.success]" is="#[MunitTools::equalTo(true)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <http:request-config name="HTTP_Request_configuration_api_manager" basePath="/api">
+        <http:request-connection host="localhost" port="8081" protocol="HTTP"/>
+    </http:request-config>
+
+</mule>

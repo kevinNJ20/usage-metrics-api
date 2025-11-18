@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+
+    <munit:config name="options-handler-test-suite.xml" />
+
+    <munit:test name="options-handler-cors-test" description="Test du flow options-handler pour CORS">
+        <munit:execution>
+            <http:request method="OPTIONS" path="/api/meters" config-ref="HTTP_Request_configuration_options">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+    "Origin": "http://localhost:3000"
+}]]]></http:headers>
+            </http:request>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[attributes.statusCode]" is="#[MunitTools::equalTo(200)]"/>
+            <munit-tools:assert-that expression="#[attributes.headers.'Access-Control-Allow-Origin']" is="#[MunitTools::equalTo('*')]"/>
+        </munit:validation>
+    </munit:test>
+
+    <http:request-config name="HTTP_Request_configuration_options" basePath="/api">
+        <http:request-connection host="localhost" port="8081" protocol="HTTP"/>
+    </http:request-config>
+
+</mule>
+
