@@ -210,12 +210,12 @@ default.days.back=30               # Historique par défaut
 
 ```xml
 <!-- Limites pour les alertes -->
-<global-property name="limit.flows.warning" value="250" />      <!-- 80% de 300 -->
+<global-property name="limit.flows.warning" value="240" />      <!-- 80% de 300 -->
 <global-property name="limit.flows.critical" value="300" />     <!-- Limite max -->
-<global-property name="limit.governed.warning" value="9" />     <!-- 75% de 12 -->
-<global-property name="limit.governed.critical" value="12" />   <!-- Limite max -->
-<global-property name="limit.managed.warning" value="9" />      <!-- Par env type -->
-<global-property name="limit.managed.critical" value="12" />    
+<global-property name="limit.governed.warning" value="16" />    <!-- 80% de 20 -->
+<global-property name="limit.governed.critical" value="20" />   <!-- Limite max -->
+<global-property name="limit.managed.warning" value="16" />     <!-- 80% de 20 (par env type) -->
+<global-property name="limit.managed.critical" value="20" />    <!-- Limite max (prod et preprod) -->    
 
 <!-- Organisation à monitorer -->
 <global-property name="org.id" value="f22cd53d-c1ea-482e-a6e6-2d367ba7e48e" />
@@ -386,9 +386,9 @@ Le système surveille automatiquement 3 types de métriques :
 
 | Métrique | Warning | Critical | Fréquence |
 |----------|---------|----------|-----------|
-| **Runtime Flows** | 250 | 300 | Horaire |
-| **Governed APIs** | 9 | 12 | Horaire |
-| **Managed APIs** | 9 | 12 | Horaire |
+| **Runtime Flows** | 240 | 300 | Horaire |
+| **Governed APIs** | 16 | 20 | Horaire |
+| **Managed APIs** | 16 | 20 | Horaire |
 
 ### Format des Alertes Slack
 

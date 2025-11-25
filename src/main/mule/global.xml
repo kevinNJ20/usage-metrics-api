@@ -40,12 +40,12 @@
     <os:object-store name="Slack_Token_store" doc:name="Slack Token Store" doc:id="dcbf5f33-e4dd-4f7e-80c5-bedf7db9e6b1" maxEntries="5" entryTtl="30" entryTtlUnit="DAYS"/>
 
     <!-- Variables globales pour les limites -->
-    <global-property name="limit.flows.warning" value="250" />
+    <global-property name="limit.flows.warning" value="240" />
     <global-property name="limit.flows.critical" value="300" />
-    <global-property name="limit.governed.warning" value="9" />
-    <global-property name="limit.governed.critical" value="12" />
-    <global-property name="limit.managed.warning" value="9" />
-    <global-property name="limit.managed.critical" value="12" />
+    <global-property name="limit.governed.warning" value="16" />
+    <global-property name="limit.governed.critical" value="20" />
+    <global-property name="limit.managed.warning" value="16" />
+    <global-property name="limit.managed.critical" value="20" />
     
     <!-- Configuration de l'organisation -->
     <global-property name="org.id" value="f22cd53d-c1ea-482e-a6e6-2d367ba7e48e" />

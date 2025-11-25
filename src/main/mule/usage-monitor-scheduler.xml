@@ -27,11 +27,11 @@
     <!-- Flow Scheduler principal -->
     <flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
         <!-- Scheduler toutes les heures -->
-        <!-- [STUDIO:"Scheduler - Every Hour"]<scheduler doc:name="Scheduler - Every Hour">
+        <scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
                 <fixed-frequency frequency="1" timeUnit="HOURS"/>
             </scheduling-strategy>
-        </scheduler> [STUDIO] -->
+        </scheduler>
         
         <logger level="INFO" doc:name="Logger Start" message="[MONITOR] Début de la vérification des limites d'usage"/>
         
