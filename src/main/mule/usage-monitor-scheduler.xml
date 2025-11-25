@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams"
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+      xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams"
       xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
@@ -11,19 +12,15 @@
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
         http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-        http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd">
-
-    <!-- Configuration HTTP pour Slack Webhook -->
-    <http:request-config name="Slack_Webhook_Config" doc:name="Slack Webhook Config" doc:id="af0436d2-96c2-479c-807c-4ea9798bef53">
-        <http:request-connection protocol="HTTPS" host="hooks.slack.com" port="443" />
-    </http:request-config>
+        http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd
+        http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
 
     <!-- Flow Scheduler principal -->
     <flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
         <!-- Scheduler toutes les heures -->
         <scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
-                <fixed-frequency frequency="1" timeUnit="HOURS"/>
+                <fixed-frequency frequency="7" timeUnit="DAYS"/>
             </scheduling-strategy>
         </scheduler>
         
@@ -443,13 +440,13 @@ output application/json
             </http:request>
             <logger level="INFO" doc:name="Log Success" 
                    message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoyée(s) sur Slack"]'/>
+            <error-handler>
+                <on-error-continue type="ANY" enableNotifications="true" logException="true">
+                    <logger level="ERROR" doc:name="Log Slack Error" 
+                           message='#["[MONITOR] Erreur lors de l&apos;envoi des alertes Slack: " ++ (error.description default "Erreur inconnue") ++ ". Vérifiez la configuration du webhook Slack."]'/>
+                </on-error-continue>
+            </error-handler>
         </try>
-        <error-handler>
-            <on-error-continue type="HTTP:CLIENT_ERROR,HTTP:SERVER_ERROR,HTTP:CONNECTIVITY" enableNotifications="true" logException="true">
-                <logger level="ERROR" doc:name="Log Slack Error" 
-                       message='#["[MONITOR] Erreur lors de l''envoi des alertes Slack: " ++ (error.description default "Erreur inconnue") ++ ". Vérifiez la configuration du webhook Slack."]'/>
-            </on-error-continue>
-        </error-handler>
         
         <!-- Sauvegarder l'historique des alertes dans Object Store (optionnel) -->
         <ee:transform doc:name="Prepare Alert History">

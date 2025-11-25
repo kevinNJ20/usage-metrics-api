@@ -50,6 +50,10 @@
     
     <!-- Configuration Slack -->
     <global-property name="slack.channel" value="#bnde-alerts" />
-
+    
+    <!-- Configuration HTTP pour Slack Webhook -->
+    <http:request-config name="Slack_Webhook_Config" doc:name="Slack Webhook Config" doc:id="029c86e9-b29c-4701-bb74-3b678b8cf282">
+        <http:request-connection protocol="HTTPS" host="hooks.slack.com" port="443" />
+    </http:request-config>
 </mule>
 
