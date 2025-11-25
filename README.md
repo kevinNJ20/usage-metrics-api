@@ -230,14 +230,16 @@ default.days.back=30               # Historique par défaut
 1. **Créer un Webhook Slack** : https://api.slack.com/apps
 2. **Activer Incoming Webhooks** dans votre app Slack
 3. **Créer un nouveau webhook** pour le canal `#bnde-alerts`
-4. **Copier l'URL du webhook** (format: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`)
+4. **Copier l'URL du webhook** depuis l'interface Slack
 5. **Configurer dans `config.properties`** :
    ```properties
-   # Extraire le path de l'URL (partie après hooks.slack.com)
-   # Exemple: https://hooks.slack.com/services/T123/B456/abc123
-   # Devient: /services/T123/B456/abc123
-   slack.webhook.path=/services/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
+   # Extraire uniquement le path de l'URL complète
+   # Exemple d'URL complète: https://hooks.slack.com/services/T123/B456/abc123def456
+   # Extraire uniquement: /services/T123/B456/abc123def456
+   slack.webhook.path=/services/VOTRE_TEAM_ID/VOTRE_CHANNEL_ID/VOTRE_TOKEN
    ```
+   
+   **⚠️ IMPORTANT** : Ne jamais commiter `config.properties` dans Git. Ce fichier contient des secrets et est automatiquement ignoré par `.gitignore`.
 
 ## 📁 Structure du projet
 

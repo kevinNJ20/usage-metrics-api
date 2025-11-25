@@ -1,0 +1,22 @@
+# HTTP Configuration
+http.port=8081
+
+# Anypoint Platform Credentials
+anypoint.client.id=YOUR_CLIENT_ID_HERE
+anypoint.client.secret=YOUR_CLIENT_SECRET_HERE
+
+# API Base URL (EU region)
+anypoint.base.url=https://eu1.anypoint.mulesoft.com
+
+# Token TTL (in seconds)
+token.ttl=3500
+
+# Default Query Parameters
+default.timeseries=P1D
+default.days.back=30
+
+# Slack Webhook Configuration
+# Pour obtenir l'URL du webhook: https://api.slack.com/apps > Your App > Incoming Webhooks
+# Format: /services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+slack.webhook.path=/services/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
+
