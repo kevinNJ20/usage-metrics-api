@@ -36,9 +36,6 @@
                       entryTtl="30" 
                       entryTtlUnit="DAYS"/>
 
-    <!-- Object Store pour Slack Token -->
-    <os:object-store name="Slack_Token_store" doc:name="Slack Token Store" doc:id="dcbf5f33-e4dd-4f7e-80c5-bedf7db9e6b1" maxEntries="5" entryTtl="30" entryTtlUnit="DAYS"/>
-
     <!-- Variables globales pour les limites -->
     <global-property name="limit.flows.warning" value="240" />
     <global-property name="limit.flows.critical" value="300" />

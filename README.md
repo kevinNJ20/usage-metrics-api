@@ -225,15 +225,19 @@ default.days.back=30               # Historique par défaut
 <global-property name="slack.channel" value="#bnde-alerts" />
 ```
 
-### 3. Configuration Slack
+### 3. Configuration Slack Webhook
 
-1. **Créer une App Slack** : https://api.slack.com/apps
-2. **Ajouter OAuth Scopes** : `chat:write`
-3. **Installer dans votre workspace**
-4. **Configurer dans l'API** :
-   - Consumer Key : `917880024448.9410043447527`
-   - Consumer Secret : `615fc735ba92562890cca25be24b6989`
-   - Callback URL : `https://localhost:8081/callback`
+1. **Créer un Webhook Slack** : https://api.slack.com/apps
+2. **Activer Incoming Webhooks** dans votre app Slack
+3. **Créer un nouveau webhook** pour le canal `#bnde-alerts`
+4. **Copier l'URL du webhook** (format: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`)
+5. **Configurer dans `config.properties`** :
+   ```properties
+   # Extraire le path de l'URL (partie après hooks.slack.com)
+   # Exemple: https://hooks.slack.com/services/T123/B456/abc123
+   # Devient: /services/T123/B456/abc123
+   slack.webhook.path=/services/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
+   ```
 
 ## 📁 Structure du projet
 

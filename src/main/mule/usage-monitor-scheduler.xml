@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mule xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams"
-      xmlns:slack="http://www.mulesoft.org/schema/mule/slack"
       xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
@@ -12,17 +11,12 @@
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
         http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-        http://www.mulesoft.org/schema/mule/slack http://www.mulesoft.org/schema/mule/slack/current/mule-slack.xsd
         http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd">
 
-    <!-- Configuration Slack -->
-    <slack:config name="Slack_Config" doc:name="Slack Connector Config" doc:id="af0436d2-96c2-479c-807c-4ea9798bef53">
-        <slack:slack-auth-connection>
-            <slack:oauth-authorization-code consumerKey="917880024448.9410043447527" consumerSecret="615fc735ba92562890cca25be24b6989" authorizationUrl="https://slack.com/oauth/v2/authorize" accessTokenUrl="https://slack.com/api/oauth.v2.access" scopes="chat:write"/>
-            <slack:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="https://localhost:8081/callback"/>
-            <slack:oauth-store-config objectStore="Slack_Token_store" />
-        </slack:slack-auth-connection>
-    </slack:config>
+    <!-- Configuration HTTP pour Slack Webhook -->
+    <http:request-config name="Slack_Webhook_Config" doc:name="Slack Webhook Config" doc:id="af0436d2-96c2-479c-807c-4ea9798bef53">
+        <http:request-connection protocol="HTTPS" host="hooks.slack.com" port="443" />
+    </http:request-config>
 
     <!-- Flow Scheduler principal -->
     <flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
@@ -392,15 +386,15 @@ output application/java
 
     <!-- Sub-flow pour envoyer les alertes Slack -->
     <sub-flow name="send-slack-alerts" doc:name="Send Slack Alerts">
-        <ee:transform doc:name="Create Slack Message">
+        <ee:transform doc:name="Prepare Slack Webhook Payload">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
 {
-    channel: p('slack.channel'),
     text: if (vars.hasCritical default false) "🚨 Alertes Critiques - Anypoint Usage Monitor" 
           else "⚠️ Alertes Warning - Anypoint Usage Monitor",
+    channel: p('slack.channel'),
     attachments: (vars.alerts default []) map ((alert, index) -> {
         color: if (alert.level == "CRITICAL") "danger" else "warning",
         title: alert.message,
@@ -439,9 +433,23 @@ output application/json
             </ee:message>
         </ee:transform>
         
-        <slack:create-chatpost-message doc:name="Post Message to Slack" doc:id="032e1c60-6515-486c-969f-f8a109137508" config-ref="Slack_Config"/>
-        <logger level="INFO" doc:name="Log Success" 
-               message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoyée(s) sur Slack"]'/>
+        <try doc:name="Try">
+            <http:request method="POST" path="#[p('slack.webhook.path')]" doc:name="Post Message to Slack Webhook" config-ref="Slack_Webhook_Config">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+    "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+            <logger level="INFO" doc:name="Log Success" 
+                   message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoyée(s) sur Slack"]'/>
+        </try>
+        <error-handler>
+            <on-error-continue type="HTTP:CLIENT_ERROR,HTTP:SERVER_ERROR,HTTP:CONNECTIVITY" enableNotifications="true" logException="true">
+                <logger level="ERROR" doc:name="Log Slack Error" 
+                       message='#["[MONITOR] Erreur lors de l''envoi des alertes Slack: " ++ (error.description default "Erreur inconnue") ++ ". Vérifiez la configuration du webhook Slack."]'/>
+            </on-error-continue>
+        </error-handler>
         
         <!-- Sauvegarder l'historique des alertes dans Object Store (optionnel) -->
         <ee:transform doc:name="Prepare Alert History">
