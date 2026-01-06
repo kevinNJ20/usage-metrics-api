@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+      xmlns:gmail="http://www.mulesoft.org/schema/mule/gmail"
+      xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
       xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
-      xmlns:os="http://www.mulesoft.org/schema/mule/os"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="
+      xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-        http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+        http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/gmail http://www.mulesoft.org/schema/mule/gmail/current/mule-gmail.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
 
     <!-- Configuration globale des propriétés -->
     <configuration-properties file="config.properties"/>
@@ -55,5 +57,12 @@
     <http:request-config name="Slack_Webhook_Config" doc:name="Slack Webhook Config" doc:id="029c86e9-b29c-4701-bb74-3b678b8cf282">
         <http:request-connection protocol="HTTPS" host="hooks.slack.com" port="443" />
     </http:request-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="a0201e51-7980-4065-b9a1-59cf89834b7b" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="knjundja@jasmineconseil.com" password="aadr mhgi wtzw iosb" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.required" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
 </mule>
 

@@ -1,35 +1,20 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
-      xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams"
-      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-      xmlns="http://www.mulesoft.org/schema/mule/core"
-      xmlns:http="http://www.mulesoft.org/schema/mule/http"
-      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-      xmlns:os="http://www.mulesoft.org/schema/mule/os"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="
-        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-        http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd
-        http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
-
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:gmail="http://www.mulesoft.org/schema/mule/gmail" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd         http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd         http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd         http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/gmail http://www.mulesoft.org/schema/mule/gmail/current/mule-gmail.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
     <!-- Flow Scheduler principal -->
-    <flow name="usage-monitor-scheduler-flow" doc:name="Usage Monitor Scheduler Flow">
+    <os:object-store name="Gmail_Alerts_History_store" doc:name="Object store" doc:id="6d3ee923-4fbc-46a5-8119-ab93db52c71a" maxEntries="100" entryTtl="30" entryTtlUnit="DAYS" />
+	<flow doc:name="Usage Monitor Scheduler Flow" name="usage-monitor-scheduler-flow">
         <!-- Scheduler toutes les heures -->
         <scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
-                <fixed-frequency frequency="7" timeUnit="DAYS"/>
-            </scheduling-strategy>
+				<fixed-frequency frequency="15" timeUnit="DAYS" startDelay="15"/>
+            
+</scheduling-strategy>
         </scheduler>
-        
-        <logger level="INFO" doc:name="Logger Start" message="[MONITOR] Début de la vérification des limites d'usage"/>
-        
+        <logger doc:name="Logger Start" level="INFO" message="[MONITOR] Début de la vérification des limites d'usage"></logger>
         <!-- Initialiser les variables -->
         <ee:transform doc:name="Initialize Variables">
-            <ee:message>
-            </ee:message>
+            <ee:message></ee:message>
             <ee:variables>
                 <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -43,34 +28,29 @@ now() as String]]></ee:set-variable>
                 <ee:set-variable variableName="hasCritical"><![CDATA[false]]></ee:set-variable>
             </ee:variables>
         </ee:transform>
-        
         <!-- Récupérer le token d'accès -->
-        <flow-ref name="get-access-token" doc:name="Get Access Token"/>
-        
+        <flow-ref doc:name="Get Access Token" name="get-access-token"></flow-ref>
         <!-- Vérifier les flux runtime -->
-        <flow-ref name="check-runtime-flows" doc:name="Check Runtime Flows"/>
-        
+        <flow-ref doc:name="Check Runtime Flows" name="check-runtime-flows"></flow-ref>
         <!-- Vérifier les APIs gouvernées -->
-        <flow-ref name="check-governed-apis" doc:name="Check Governed APIs"/>
-        
+        <flow-ref doc:name="Check Governed APIs" name="check-governed-apis"></flow-ref>
         <!-- Vérifier les APIs managées par environnement -->
-        <flow-ref name="check-managed-apis" doc:name="Check Managed APIs"/>
-        
+        <flow-ref doc:name="Check Managed APIs" name="check-managed-apis"></flow-ref>
         <!-- Envoyer les alertes si nécessaire -->
         <choice doc:name="Send Alerts if Needed">
             <when expression="#[sizeOf(vars.alerts default []) > 0]">
-                <flow-ref name="send-slack-alerts" doc:name="Send Slack Alerts"/>
-            </when>
+                <flow-ref doc:name="Send Slack Alerts" name="send-slack-alerts"></flow-ref>
+				<flow-ref doc:name="send-gmail-alerts" doc:id="7cecb89a-529a-410c-a1c7-0b9c93c8afd9" name="send-gmail-alerts"/>
+            
+</when>
             <otherwise>
-                <logger level="INFO" doc:name="No Alerts" message="[MONITOR] Aucune alerte à envoyer - Toutes les métriques sont dans les limites"/>
+                <logger doc:name="No Alerts" level="INFO" message="[MONITOR] Aucune alerte à envoyer - Toutes les métriques sont dans les limites"></logger>
             </otherwise>
         </choice>
-        
-        <logger level="INFO" doc:name="Logger End" message="[MONITOR] Fin de la vérification des limites"/>
+        <logger doc:name="Logger End" level="INFO" message="[MONITOR] Fin de la vérification des limites"></logger>
     </flow>
-
     <!-- Sub-flow pour vérifier les flux runtime -->
-    <sub-flow name="check-runtime-flows" doc:name="Check Runtime Flows">
+    <sub-flow doc:name="Check Runtime Flows" name="check-runtime-flows">
         <try doc:name="Try">
             <!-- Calculer les timestamps pour les dernières 24h -->
             <ee:transform doc:name="Set Query Parameters">
@@ -88,9 +68,7 @@ output application/json
 }]]></ee:set-payload>
                 </ee:message>
             </ee:transform>
-            
-            <http:request method="POST" path="/metering/usage/api/v1/meters:search" 
-                         config-ref="Anypoint_HTTP_Request_config" doc:name="Get Runtime Flows Count">
+            <http:request config-ref="Anypoint_HTTP_Request_config" doc:name="Get Runtime Flows Count" method="POST" path="/metering/usage/api/v1/meters:search">
                 <http:body><![CDATA[#[payload]]]></http:body>
                 <http:headers><![CDATA[#[output application/java
 ---
@@ -99,11 +77,9 @@ output application/json
     "content-type" : "application/json"
 }]]]></http:headers>
             </http:request>
-            
             <!-- Analyser les résultats -->
             <ee:transform doc:name="Analyze Flow Count">
-                <ee:message>
-                </ee:message>
+                <ee:message></ee:message>
                 <ee:variables>
                     <ee:set-variable variableName="totalFlows"><![CDATA[%dw 2.0
 output application/java
@@ -111,16 +87,12 @@ output application/java
 sum(payload.data.mule_flow_count default []) default 0]]></ee:set-variable>
                 </ee:variables>
             </ee:transform>
-            
-            <logger level="INFO" doc:name="Log Flow Count" 
-                   message='#["[MONITOR] Nombre total de flux runtime: " ++ vars.totalFlows ++ " / " ++ p("limit.flows.critical")]'/>
-            
+            <logger doc:name="Log Flow Count" level="INFO" message="#[&quot;[MONITOR] Nombre total de flux runtime: &quot; ++ vars.totalFlows ++ &quot; / &quot; ++ p(&quot;limit.flows.critical&quot;)]"></logger>
             <!-- Vérifier les limites -->
             <choice doc:name="Check Flow Limits">
                 <when expression="#[vars.totalFlows >= p('limit.flows.critical') as Number]">
                     <ee:transform doc:name="Add Critical Alert">
-                        <ee:message>
-                        </ee:message>
+                        <ee:message></ee:message>
                         <ee:variables>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -139,8 +111,7 @@ output application/java
                 </when>
                 <when expression="#[vars.totalFlows >= p('limit.flows.warning') as Number]">
                     <ee:transform doc:name="Add Warning Alert">
-                        <ee:message>
-                        </ee:message>
+                        <ee:message></ee:message>
                         <ee:variables>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -158,18 +129,15 @@ output application/java
                     </ee:transform>
                 </when>
             </choice>
-            
             <error-handler>
                 <on-error-continue type="ANY">
-                    <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des flux runtime: " ++ (error.description default "Erreur inconnue")]'/>
+                    <logger doc:name="Log Error" level="ERROR" message="#[&quot;[MONITOR] Erreur lors de la vérification des flux runtime: &quot; ++ (error.description default &quot;Erreur inconnue&quot;)]"></logger>
                 </on-error-continue>
             </error-handler>
         </try>
     </sub-flow>
-
     <!-- Sub-flow pour vérifier les APIs gouvernées -->
-    <sub-flow name="check-governed-apis" doc:name="Check Governed APIs">
+    <sub-flow doc:name="Check Governed APIs" name="check-governed-apis">
         <try doc:name="Try">
             <ee:transform doc:name="Set Query Parameters">
                 <ee:message>
@@ -186,9 +154,7 @@ output application/json
 }]]></ee:set-payload>
                 </ee:message>
             </ee:transform>
-            
-            <http:request method="POST" path="/metering/usage/api/v1/meters:search" 
-                         config-ref="Anypoint_HTTP_Request_config" doc:name="Get Governed APIs Count">
+            <http:request config-ref="Anypoint_HTTP_Request_config" doc:name="Get Governed APIs Count" method="POST" path="/metering/usage/api/v1/meters:search">
                 <http:body><![CDATA[#[payload]]]></http:body>
                 <http:headers><![CDATA[#[output application/java
 ---
@@ -197,10 +163,8 @@ output application/json
     "content-type" : "application/json"
 }]]]></http:headers>
             </http:request>
-            
             <ee:transform doc:name="Analyze Governed Count">
-                <ee:message>
-                </ee:message>
+                <ee:message></ee:message>
                 <ee:variables>
                     <ee:set-variable variableName="governedCount"><![CDATA[%dw 2.0
 output application/java
@@ -208,15 +172,11 @@ output application/java
 max(payload.data.governed_api_count default [0]) default 0]]></ee:set-variable>
                 </ee:variables>
             </ee:transform>
-            
-            <logger level="INFO" doc:name="Log Governed Count" 
-                   message='#["[MONITOR] Nombre d APIs gouvernées: " ++ vars.governedCount ++ " / " ++ p("limit.governed.critical")]'/>
-            
+            <logger doc:name="Log Governed Count" level="INFO" message="#[&quot;[MONITOR] Nombre d APIs gouverné: &quot; ++ vars.governedCount ++ &quot; / &quot; ++ p(&quot;limit.governed.critical&quot;)]"></logger>
             <choice doc:name="Check Governed Limits">
                 <when expression="#[vars.governedCount >= p('limit.governed.critical') as Number]">
                     <ee:transform doc:name="Add Critical Alert">
-                        <ee:message>
-                        </ee:message>
+                        <ee:message></ee:message>
                         <ee:variables>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -235,8 +195,7 @@ output application/java
                 </when>
                 <when expression="#[vars.governedCount >= p('limit.governed.warning') as Number]">
                     <ee:transform doc:name="Add Warning Alert">
-                        <ee:message>
-                        </ee:message>
+                        <ee:message></ee:message>
                         <ee:variables>
                             <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -254,24 +213,20 @@ output application/java
                     </ee:transform>
                 </when>
             </choice>
-            
             <error-handler>
                 <on-error-continue type="ANY">
-                    <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des APIs gouvernées: " ++ (error.description default "Erreur inconnue")]'/>
+                    <logger doc:name="Log Error" level="ERROR" message="#[&quot;[MONITOR] Erreur lors de la vérification des APIs gouvernées: &quot; ++ (error.description default &quot;Erreur inconnue&quot;)]"></logger>
                 </on-error-continue>
             </error-handler>
         </try>
     </sub-flow>
-
     <!-- Sub-flow pour vérifier les APIs managées par environnement -->
-    <sub-flow name="check-managed-apis" doc:name="Check Managed APIs">
+    <sub-flow doc:name="Check Managed APIs" name="check-managed-apis">
         <try doc:name="Try">
             <!-- Vérifier pour chaque type d'environnement -->
             <foreach collection="#[['production', 'sandbox', 'unclassified']]" doc:name="For Each Environment Type">
                 <ee:transform doc:name="Set Environment Type">
-                    <ee:message>
-                    </ee:message>
+                    <ee:message></ee:message>
                     <ee:variables>
                         <ee:set-variable variableName="currentEnvType"><![CDATA[%dw 2.0
 output application/java
@@ -279,7 +234,6 @@ output application/java
 payload]]></ee:set-variable>
                     </ee:variables>
                 </ee:transform>
-                
                 <!-- Déterminer le meter selon le type d'environnement -->
                 <ee:transform doc:name="Set Query for Environment">
                     <ee:message>
@@ -300,9 +254,7 @@ output application/json
 }]]></ee:set-payload>
                     </ee:message>
                 </ee:transform>
-                
-                <http:request method="POST" path="/metering/usage/api/v1/meters:search" 
-                             config-ref="Anypoint_HTTP_Request_config" doc:name="Get Managed APIs Count">
+                <http:request config-ref="Anypoint_HTTP_Request_config" doc:name="Get Managed APIs Count" method="POST" path="/metering/usage/api/v1/meters:search">
                     <http:body><![CDATA[#[payload]]]></http:body>
                     <http:headers><![CDATA[#[output application/java
 ---
@@ -311,10 +263,8 @@ output application/json
     "content-type" : "application/json"
 }]]]></http:headers>
                 </http:request>
-                
                 <ee:transform doc:name="Analyze Managed Count">
-                    <ee:message>
-                    </ee:message>
+                    <ee:message></ee:message>
                     <ee:variables>
                         <ee:set-variable variableName="managedCount"><![CDATA[%dw 2.0
 output application/java
@@ -322,15 +272,11 @@ output application/java
 max(payload.data.managed_api_count default [0]) default 0]]></ee:set-variable>
                     </ee:variables>
                 </ee:transform>
-                
-                <logger level="INFO" doc:name="Log Managed Count" 
-                       message='#["[MONITOR] APIs managées (" ++ vars.currentEnvType ++ "): " ++ vars.managedCount ++ " / " ++ p("limit.managed.critical")]'/>
-                
+                <logger doc:name="Log Managed Count" level="INFO" message="#[&quot;[MONITOR] APIs managées (&quot; ++ vars.currentEnvType ++ &quot;): &quot; ++ vars.managedCount ++ &quot; / &quot; ++ p(&quot;limit.managed.critical&quot;)]"></logger>
                 <choice doc:name="Check Managed Limits">
                     <when expression="#[vars.managedCount >= p('limit.managed.critical') as Number]">
                         <ee:transform doc:name="Add Critical Alert">
-                            <ee:message>
-                            </ee:message>
+                            <ee:message></ee:message>
                             <ee:variables>
                                 <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -350,8 +296,7 @@ output application/java
                     </when>
                     <when expression="#[vars.managedCount >= p('limit.managed.warning') as Number]">
                         <ee:transform doc:name="Add Warning Alert">
-                            <ee:message>
-                            </ee:message>
+                            <ee:message></ee:message>
                             <ee:variables>
                                 <ee:set-variable variableName="alerts"><![CDATA[%dw 2.0
 output application/java
@@ -371,18 +316,15 @@ output application/java
                     </when>
                 </choice>
             </foreach>
-            
             <error-handler>
                 <on-error-continue type="ANY">
-                    <logger level="ERROR" doc:name="Log Error" 
-                           message='#["[MONITOR] Erreur lors de la vérification des APIs managées: " ++ (error.description default "Erreur inconnue")]'/>
+                    <logger doc:name="Log Error" level="ERROR" message="#[&quot;[MONITOR] Erreur lors de la vérification des APIs managées: &quot; ++ (error.description default &quot;Erreur inconnue&quot;)]"></logger>
                 </on-error-continue>
             </error-handler>
         </try>
     </sub-flow>
-
     <!-- Sub-flow pour envoyer les alertes Slack -->
-    <sub-flow name="send-slack-alerts" doc:name="Send Slack Alerts">
+    <sub-flow doc:name="Send Slack Alerts" name="send-slack-alerts">
         <ee:transform doc:name="Prepare Slack Webhook Payload">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
@@ -429,25 +371,22 @@ output application/json
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-        
         <try doc:name="Try">
-            <http:request method="POST" path="#[p('slack.webhook.path')]" doc:name="Post Message to Slack Webhook" config-ref="Slack_Webhook_Config">
+            <http:request config-ref="Slack_Webhook_Config" doc:name="Post Message to Slack Webhook" method="POST" path="#[p('slack.webhook.path')]">
                 <http:headers><![CDATA[#[output application/java
 ---
 {
     "Content-Type": "application/json"
 }]]]></http:headers>
             </http:request>
-            <logger level="INFO" doc:name="Log Success" 
-                   message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoyée(s) sur Slack"]'/>
+            <logger doc:name="Log Success" level="INFO" message="#[&quot;[MONITOR] &quot; ++ sizeOf(vars.alerts default []) ++ &quot; alerte(s) envoyée(s) sur Slack&quot;]"></logger>
             <error-handler>
-                <on-error-continue type="ANY" enableNotifications="true" logException="true">
-                    <logger level="ERROR" doc:name="Log Slack Error" 
-                           message='#["[MONITOR] Erreur lors de l&apos;envoi des alertes Slack: " ++ (error.description default "Erreur inconnue") ++ ". Vérifiez la configuration du webhook Slack."]'/>
+                <on-error-continue enableNotifications="true" logException="true" type="ANY">
+					<logger level="INFO" doc:name="Log Slack Error" doc:id="a4515247-ef06-4448-9f80-50b12ed15d4f" message="#[&quot;[MONITOR] Erreur lors de l'envoi des alertes Slack: &quot; ++ (error.description default &quot;Erreur inconnue &quot;) ++ &quot;. Vérifiez la configuration du webhook Slack. &quot;]"/>
+
                 </on-error-continue>
             </error-handler>
         </try>
-        
         <!-- Sauvegarder l'historique des alertes dans Object Store (optionnel) -->
         <ee:transform doc:name="Prepare Alert History">
             <ee:message>
@@ -462,20 +401,13 @@ output application/json
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-        
-        <os:store doc:name="Store Alert History" 
-                 key="#['alert_history_' ++ now() as String {format: 'yyyyMMdd_HHmmss'}]"
-                 objectStore="Alert_History_Store">
+        <os:store doc:name="Store Alert History" key="#['alert_history_' ++ now() as String {format: 'yyyyMMdd_HHmmss'}]" objectStore="Alert_History_Store">
             <os:value>#[payload]</os:value>
         </os:store>
     </sub-flow>
-
     <!-- Flow manuel pour tester le monitoring -->
-    <flow name="test-monitor-flow" doc:name="Test Monitor Flow">
-        <http:listener doc:name="GET /api/test-monitor" 
-                      path="/api/test-monitor" 
-                      allowedMethods="GET" 
-                      config-ref="HTTP_Listener_config">
+    <flow doc:name="Test Monitor Flow" name="test-monitor-flow">
+        <http:listener allowedMethods="GET" config-ref="HTTP_Listener_config" doc:name="GET /api/test-monitor" path="/api/test-monitor">
             <http:response>
                 <http:headers><![CDATA[#[{
                     'Access-Control-Allow-Origin': '*',
@@ -484,12 +416,9 @@ output application/json
                 }]]]></http:headers>
             </http:response>
         </http:listener>
-        
-        <logger level="INFO" doc:name="Log Test Start" message="[MONITOR] Test manuel du monitoring déclenché"/>
-        
+        <logger doc:name="Log Test Start" level="INFO" message="[MONITOR] Test manuel du monitoring déclenché;"></logger>
         <!-- Déclencher le flow de monitoring -->
-        <flow-ref name="usage-monitor-scheduler-flow" doc:name="Trigger Monitor Flow"/>
-        
+        <flow-ref doc:name="Trigger Monitor Flow" name="usage-monitor-scheduler-flow"></flow-ref>
         <ee:transform doc:name="Return Test Result">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
@@ -505,5 +434,174 @@ output application/json
             </ee:message>
         </ee:transform>
     </flow>
+	<!-- [STUDIO:"send-gmail-alerts"]<sub-flow name="send-gmail-alerts" doc:id="1d8718b3-071b-48ca-ba8d-676648584f2f" >
+		<ee:transform doc:name="Prepare Slack Webhook Payload" doc:id="4499b33e-ed30-4d98-bee0-484a587e179e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+{
+    text: if (vars.hasCritical default false) "🚨 Alertes Critiques - Anypoint Usage Monitor" 
+          else "⚠️ Alertes Warning - Anypoint Usage Monitor",
+    channel: p('slack.channel'),
+    attachments: (vars.alerts default [&#93;) map ((alert, index) -> {
+        color: if (alert.level == "CRITICAL") "danger" else "warning",
+        title: alert.message,
+        text: alert.details,
+        fields: [
+            {
+                title: "Type",
+                value: alert."type",
+                short: true
+            },
+            {
+                title: "Niveau",
+                value: alert.level,
+                short: true
+            },
+            {
+                title: "Valeur Actuelle",
+                value: alert.value as String,
+                short: true
+            },
+            {
+                title: "Limite",
+                value: alert.limit as String,
+                short: true
+            }
+        &#93; ++ (if (alert.environment?) [{
+            title: "Environnement",
+            value: upper(alert.environment),
+            short: true
+        }&#93; else [&#93;),
+        footer: "Anypoint Usage Monitor",
+        footer_icon: "https://www.mulesoft.com/favicon.ico",
+        ts: now() as Number {unit: "seconds"}
+    })
+}&#93;&#93;></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="ad853e92-6dec-4c7b-9bf3-386d5bb2e648" >
+			<http:request config-ref="Slack_Webhook_Config" doc:name="Post Message to Slack Webhook" method="POST" path="#[p('slack.webhook.path')&#93;">
+                <http:headers><![CDATA[#[output application/java
+&#45;&#45;-
+{
+    "Content-Type": "application/json"
+}&#93;&#93;&#93;></http:headers>
+            </http:request>
+		</try>
+	</sub-flow> [STUDIO] -->
+	<sub-flow name="send-gmail-alerts" doc:id="b222400c-a5e1-4f7f-9489-21b20cc987b1" >
+		<ee:transform doc:name="Prepare Gmail Payload" doc:id="dc8ecc7c-662e-40d8-b647-f1c9c8e366f9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+var isCritical = vars.hasCritical default false
+var alerts = vars.alerts default []
+---
+(
+  [
+    if (isCritical)
+      "🚨 ALERTES CRITIQUES - ANYPOINT USAGE MONITOR"
+    else
+      "⚠️ ALERTES WARNING - ANYPOINT USAGE MONITOR",
+
+    "",
+    "Bonjour,",
+    "",
+    "Veuillez trouver ci-dessous les alertes détectées par Anypoint Usage Monitor.",
+    "",
+    "--------------------------------------------------",
+    ""
+  ]
+  ++
+  (
+    alerts flatMap (alert) ->
+      [
+        "Message : " ++ alert.message,
+        "Type    : " ++ alert."type",
+        "Niveau  : " ++ alert.level,
+        "Valeur  : " ++ (alert.value as String),
+        "Limite  : " ++ (alert.limit as String)
+      ]
+      ++
+      (if (alert.environment?)
+          [ "Env.    : " ++ upper(alert.environment) ]
+       else
+          [])
+      ++
+      [
+        "Détails : " ++ alert.details,
+        "--------------------------------------------------",
+        ""
+      ]
+  )
+  ++
+  [
+    "",
+    "Cordialement,",
+    "",
+    "Kevin JAMEIN N.",
+    "Lead MuleSoft Developer",
+    "JASMINE CONSEIL"
+  ]
+  ++
+  [
+    "",
+    "Ceci est un message automatique. Merci d'en prendre connaissance regulièrement afin d'éviter toute surconsommation."
+  ]
+) joinBy "\n"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="b613572a-8cfc-415d-bc56-15adcb90b2c8" >
+			<choice doc:name="Choice" doc:id="d7b56276-1e65-4377-bbed-f30dbecce78e" >
+				<when expression="#[vars.hasCritical == true]">
+					<set-variable value='#["Anypoint] Alertes critiques d’usage – Action immédiate requise"]' doc:name="subject" doc:id="14e16355-38d5-4432-b2db-c33013fe1d11" variableName="subject" />
+				</when>
+				<otherwise >
+					<set-variable value='#["[Anypoint] Alertes d’usage – Seuils proches des limites"]' doc:name="subject" doc:id="e6f93eb0-cdc6-42d3-b7c3-5dbd511c5a97" variableName="subject"/>
+				</otherwise>
+			</choice>
+			<email:send doc:name="Send Mail to Receivers" doc:id="81e24b76-c76c-4ad3-97d7-056f3aaa83b2" config-ref="Email_SMTP" fromAddress="kevin.jameinn@gmail.com" subject='#[vars.subject]'>
+				<email:to-addresses >
+					<email:to-address value="mouhamadou-moustapha.mbodj@bnde.sn" />
+				</email:to-addresses>
+				<email:cc-addresses >
+					<email:cc-address value="kdjaafar@jasmineconseil.com" />
+					<email:cc-address value="ndjaafar@jasmineconseil.com" />
+					<email:cc-address value="ibouka@jasmineconseil.com" />
+					<email:cc-address value="ybaro@jasmineconseil.com" />
+					<email:cc-address value="sdieng@jasmineconseil.com" />
+					<email:cc-address value="birahim.basse@bnde.sn" />
+					<email:cc-address value="production@bnde.sn" />
+				</email:cc-addresses>
+				<email:bcc-addresses >
+					<email:bcc-address value="kevinjamein1@gmail.com" />
+				</email:bcc-addresses>
+				<email:body contentType="text/plain" encoding="UTF-8">
+				</email:body>
+			</email:send>
+			<logger level="INFO" doc:name="Log Success" doc:id="975f4e92-ce9f-47f0-b725-04b735508166" message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoy&amp;eacute;e(s) sur Slack"]' />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="4b843c77-a28d-4959-8f4e-0df7171d5682" type="ANY" >
+					<logger level="ERROR" doc:name="Log Gmail Error" doc:id="1f67eff8-d356-469c-8c26-b24640a615c2" message="#[&quot;[MONITOR] Erreur lors de l'envoi des alertes GMAIL: &quot; ++ (error.description default &quot;Erreur inconnue&quot;) ++ &quot;. Vérifiez la configuration du connecteur Mail.&quot;]"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Prepare Alert History" doc:id="27698a1e-9156-47d6-8faa-c419a53d998c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    alerts: vars.alerts default [],
+    hasWarnings: vars.hasWarnings default false,
+    hasCritical: vars.hasCritical default false
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<os:store doc:name="Store Alert History" doc:id="2683424e-932b-405d-9ecb-9be8b37c86a3" key="#['alert_history_' ++ now() as String {format: 'yyyyMMdd_HHmmss'}]" objectStore="Gmail_Alerts_History_store" />
+	</sub-flow>
 
 </mule>

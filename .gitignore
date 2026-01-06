@@ -47,3 +47,10 @@ target/
 velocity.log
 .tooling-project
 
+# DataWeave Playground files (auto-generated, long filenames incompatible with Windows)
+**/embedded-dw*/
+**/Playground/
+
+# Configuration files with secrets
+src/main/resources/config.properties
+
