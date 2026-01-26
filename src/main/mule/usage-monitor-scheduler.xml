@@ -3,7 +3,7 @@ http://www.mulesoft.org/schema/mule/gmail http://www.mulesoft.org/schema/mule/gm
 http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
     <!-- Flow Scheduler principal -->
     <os:object-store name="Gmail_Alerts_History_store" doc:name="Object store" doc:id="6d3ee923-4fbc-46a5-8119-ab93db52c71a" maxEntries="100" entryTtl="30" entryTtlUnit="DAYS" />
-	<flow doc:name="Usage Monitor Scheduler Flow" name="usage-monitor-scheduler-flow">
+	<flow doc:name="Usage Monitor Scheduler Flow" name="usage-monitor-scheduler-flow" initialState="stopped">
         <!-- Scheduler toutes les heures -->
         <scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
