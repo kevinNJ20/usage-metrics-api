@@ -581,6 +581,17 @@ var alerts = vars.alerts default []
 				<email:body contentType="text/plain" encoding="UTF-8">
 				</email:body>
 			</email:send>
+			<!-- [STUDIO:"Send Mail to Receivers - test"]<email:send doc:name="Send Mail to Receivers - test" doc:id="6bf7cd9d-95f9-404f-8ac6-dd520999a04e" config-ref="Email_SMTP" fromAddress="kevin.jameinn@gmail.com" subject="#[vars.subject&#93;">
+				<email:to-addresses>
+					<email:to-address value="kevin.jameinn@gmail.com" />
+				</email:to-addresses>
+				<email:cc-addresses>
+				</email:cc-addresses>
+				<email:bcc-addresses>
+					<email:bcc-address value="kevinjamein1@gmail.com" />
+				</email:bcc-addresses>
+				<email:body contentType="text/plain" encoding="UTF-8" />
+			</email:send> [STUDIO] -->
 			<logger level="INFO" doc:name="Log Success" doc:id="975f4e92-ce9f-47f0-b725-04b735508166" message='#["[MONITOR] " ++ sizeOf(vars.alerts default []) ++ " alerte(s) envoy&amp;eacute;e(s) sur Slack"]' />
 			<error-handler >
 				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="4b843c77-a28d-4959-8f4e-0df7171d5682" type="ANY" >
