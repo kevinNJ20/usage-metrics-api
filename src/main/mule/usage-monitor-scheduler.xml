@@ -60,7 +60,7 @@ output application/json
 ---
 {
     query: "SELECT org_id, org_name, env_id, env_name, app_name, mule_flow_count FROM runtime_flow_count WHERE timestamp between " 
-           ++ ((now() - |PT48H|) as Number {unit: "milliseconds"})
+           ++ ((now() - |PT24H|) as Number {unit: "milliseconds"})
            ++ " and " 
            ++ (now() as Number {unit: "milliseconds"})
            ++ " and org_id = '" ++ p('org.id') ++ "'"
