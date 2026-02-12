@@ -7,7 +7,7 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
         <!-- Scheduler toutes les heures -->
         <scheduler doc:name="Scheduler - Every Hour">
             <scheduling-strategy>
-				<fixed-frequency frequency="15" timeUnit="DAYS" startDelay="15"/>
+				<fixed-frequency frequency="15" timeUnit="DAYS"/>
             
 </scheduling-strategy>
         </scheduler>
